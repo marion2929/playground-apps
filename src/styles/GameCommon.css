@@ -1,0 +1,628 @@
+/* 画面全体の背景 */
+.page-bg {
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%);
+  background-attachment: fixed;
+  font-family: system-ui, sans-serif;
+  padding: 16px;
+}
+
+/* ゲームの白い箱 */
+.game-panel {
+  max-width: 760px;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.08);
+  padding: 16px;
+  position: relative; /* チュートリアルの黒背景を絶対配置するため */
+}
+
+/* ヘッダ行（タイトル＋ホームボタン） */
+.header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  row-gap: 8px;
+  margin-bottom: 12px;
+}
+
+.title-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.home-btn {
+  background-color: #4b5563;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* タイマー・スコア行 */
+.status-line {
+  font-size: 13px;
+  color: #111827;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+/* レベル選択 */
+.level-wrap {
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #1f2937;
+}
+
+.level-label {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.level-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.level-btn {
+  border: 1px solid rgba(0,0,0,0.2);
+  background-color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #111827;
+  min-width: 48px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.level-btn.active {
+  border: 2px solid #34d399;
+  background-color: #dcfce7;
+  box-shadow: 0 4px 10px rgba(16,185,129,0.35);
+}
+
+/* 音量調整 */
+.volume-block {
+  font-size: 13px;
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.volume-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+
+.volume-row-label {
+  font-weight: 600;
+}
+
+.volume-row-val {
+  font-size: 12px;
+  color: #6b7280;
+  min-width: 32px;
+  text-align: right;
+}
+
+.slider {
+  width: 100%;
+  height: 24px;
+  cursor: pointer;
+}
+
+/* スタート・中止ボタン行 */
+.start-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.start-btn {
+  background: linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.stop-btn {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 6px;
+  font-size: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* ゲームのカード置き場（Word Finderは単語カードのグリッド） */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0,1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* 単語カード */
+.word-card {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  padding: 10px 8px;
+  min-height: 60px;
+  aspect-ratio: 2 / 1;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.03), 0 0 12px rgba(16,185,129,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1f2937;
+  background-image: linear-gradient(135deg,#ffffff 0%,#ffffff 100%);
+  word-break: break-word;
+  white-space: pre-line;
+}
+
+.word-card.found {
+  color: #065f46;
+  background-image: linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);
+}
+
+/* カード上にかぶせる「FOUND」 */
+.card-found-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0,0,0,0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+  text-shadow: 0 0 4px #000;
+  border-radius: 8px;
+}
+
+/* ミス時の✖ */
+.card-wrong-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #ff4d4d;
+  font-size: 28px;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8);
+  border-radius: 8px;
+}
+
+/* スタート前メッセージ / リザルト */
+.info-block {
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.result-block {
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.5;
+  white-space: pre-line;
+  background-color: #f9fafb;
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+  padding: 12px;
+}
+
+/* 黒いチュートリアルオーバーレイ（ゲームパネル内を完全に覆う） */
+.tutorial-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0,0,0,1.0); /* 完全真っ黒 */
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 200;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+.tutorial-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tutorial-card {
+  background-color: rgba(255,255,255,0.95);
+  color: #1f2937;
+  border-radius: 12px;
+  padding: 16px;
+  width: 260px;
+  max-width: 90%;
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.3),
+    0 0 20px rgba(16,185,129,0.5);
+  border: 2px solid #6ee7b7;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.tutorial-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+
+.tutorial-start-btn {
+  background: linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%);
+  color: #fff;
+  border: none;
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow:
+    0 8px 20px rgba(0,0,0,0.25),
+    0 0 16px rgba(16,185,129,0.6);
+}
+
+/* サウンド許可の全画面オーバーレイ */
+.audio-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0.8);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 999;
+  text-align: center;
+}
+
+.audio-card {
+  background-color: #fff;
+  color: #1f2937;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 300px;
+  width: 100%;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  text-align: center;
+}
+
+.audio-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+
+.audio-desc {
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.audio-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* サウンド許可のボタン */
+.audio-btn-yes {
+  background: linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+
+.audio-btn-no {
+  background: linear-gradient(90deg,#6b7280 0%,#9ca3af 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+
+/* ====== 全体のゲームカード共通（Word Finderで既に使ってるやつと合わせる） ====== */
+
+/* 1ゲーム全体を包むラッパ */
+.game-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* 中央の白いカード */
+.game-card {
+  width: 100%;
+  max-width: 700px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-radius: 8px;
+  box-shadow:
+    0 24px 48px rgba(0,0,0,0.08),
+    0 4px 12px rgba(0,0,0,0.04);
+  padding: 16px;
+}
+
+/* 上のステータス行（タイム/見つけた数/ミス/ベストとか） */
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stat-pill {
+  font-size: 14px;
+  line-height: 1.4;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* レベルボタン群（10人/20人...とか） */
+.level-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.level-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.level-btn.active {
+  background: #ecfdf5;        /* green-50 */
+  border-color: #6ee7b7;      /* green-300 */
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.3) inset;
+}
+
+/* 音量コントロール */
+.volume-group {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #111827; /* gray-900 */
+}
+.volume-label-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.volume-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.volume-slider-row input[type="range"] {
+  flex: 1;
+}
+
+/* スタート/中止ボタン列 */
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.start-btn {
+  background: linear-gradient(90deg,#1e3a8a 0%,#2563eb 30%,#0ea5e9 60%,#10b981 100%);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 10px 14px;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(16,185,129,0.4);
+}
+.cancel-btn {
+  background: #4b5563; /* gray-600 */
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+/* 「スタートを押してね！」のヒント枠（待機中） */
+.prestart-hint-box {
+  border: 2px dashed #60a5fa; /* blue-400 */
+  background: #f8fafc;        /* slate-50 */
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1e3a8a;
+  margin-bottom: 16px;
+  white-space: pre-line;
+}
+
+/* ====== ゲームボード領域 ====== */
+
+.board-area {
+  background: #000;
+  color: #fff;
+  border-radius: 4px;
+  border: 1px solid #111;
+  min-height: 320px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden; /* ここ大事: カード内で完結 */
+  margin-bottom: 16px;
+}
+
+/* ====== スタート前のルール説明カード（黒背景の上に出るやつ） ====== */
+
+.rule-overlay-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rule-card {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #6ee7b7;        /* green-300-ish */
+  box-shadow:
+    0 0 20px rgba(16,185,129,0.7),
+    0 40px 60px rgba(0,0,0,0.6);
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  padding: 20px 24px;
+  color: #065f46; /* green-800 */
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rule-card-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #065f46;
+}
+.rule-card-body-line-break {
+  display: block;
+  margin-bottom: 4px;
+}
+.rule-go-btn {
+  margin-top: 16px;
+  background: linear-gradient(90deg,#1e3a8a 0%,#2563eb 30%,#0ea5e9 60%,#10b981 100%);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 10px 14px;
+  width: 100%;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(16,185,129,0.4);
+}
+
+/* ====== Smile Finder の画像グリッド ====== */
+
+.smile-grid {
+  /* ゲーム中のカード群 */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.smile-card {
+  position: relative;
+  background: #000;
+  border-radius: 6px;
+  border: 1px solid #374151; /* gray-700-ish frame inside黒 */
+  overflow: hidden;
+  cursor: pointer;
+  color: #fff;
+  text-align: center;
+}
+.smile-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.smile-card.found {
+  background: #065f46;        /* 深い緑 */
+  border-color: #10b981;      /* 明るい緑 */
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.5) inset;
+}
+.smile-found-label {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d1fae5; /* light mint */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+
+/* ====== クリア後の結果ボックス ====== */
+
+.result-box {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  padding: 12px;
+  white-space: pre-line;
+}
+.result-box .result-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 8px;
+}

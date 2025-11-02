@@ -1,0 +1,1251 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+// =============== ユーティリティ ===============
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function msToClock(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const centis = Math.floor((ms % 1000) / 10);
+  return (
+    minutes +
+    ":" +
+    seconds.toString().padStart(2, "0") +
+    "." +
+    centis.toString().padStart(2, "0")
+  );
+}
+
+// =============== データ準備（単語） ===============
+// 正解ワード80個（ポジティブ）
+const POSITIVE_WORDS = [
+  "明るい",
+  "希望",
+  "幸せ",
+  "輝く",
+  "未来",
+  "前進",
+  "チャレンジ",
+  "成長",
+  "可能性",
+  "夢",
+  "穏やか",
+  "安らぎ",
+  "温もり",
+  "優しさ",
+  "感謝",
+  "微笑み",
+  "平和",
+  "癒し",
+  "安心",
+  "和やか",
+  "努力",
+  "自信",
+  "根気",
+  "継続",
+  "勇気",
+  "挑戦",
+  "諦めない",
+  "本気",
+  "強さ",
+  "目標",
+  "自分らしい",
+  "大丈夫",
+  "誇り",
+  "愛されている",
+  "ありのまま",
+  "受け入れる",
+  "信じる",
+  "心豊か",
+  "感動",
+  "喜び",
+  "始まり",
+  "チャンス",
+  "新鮮",
+  "発見",
+  "変化",
+  "創造",
+  "冒険",
+  "学び",
+  "旅立ち",
+  "転機",
+  "笑顔",
+  "絆",
+  "仲間",
+  "協力",
+  "支え合い",
+  "思いやり",
+  "信頼",
+  "助け合い",
+  "感動を共有",
+  "ハーモニー",
+  "幸運",
+  "奇跡",
+  "チャンス",
+  "喜び",
+  "愛",
+  "成功",
+  "繁栄",
+  "感謝の連鎖",
+  "祝福",
+  "豊かさ",
+  "謙虚",
+  "真心",
+  "誠実",
+  "優雅",
+  "清らか",
+  "純粋",
+  "素直",
+  "思慮深い",
+  "正直",
+  "愛情深い",
+];
+
+// 不正解ワード160個（ネガティブ）
+const NEGATIVE_WORDS = [
+  "悲しい",
+  "寂しい",
+  "虚しい",
+  "苦しい",
+  "辛い",
+  "不安",
+  "恐い",
+  "怒り",
+  "憎い",
+  "憂うつ",
+  "絶望",
+  "後悔",
+  "嫉妬",
+  "失望",
+  "疲れた",
+  "無気力",
+  "不満",
+  "退屈",
+  "いらだち",
+  "焦り",
+  "恥ずかしい",
+  "罪悪感",
+  "孤独",
+  "不信",
+  "困惑",
+  "不快",
+  "怯え",
+  "緊張",
+  "無関心",
+  "屈辱",
+  "罪深い",
+  "無力",
+  "無価値",
+  "怒鳴る",
+  "泣きたい",
+  "迷い",
+  "不穏",
+  "後ろめたい",
+  "疑念",
+  "不義理",
+  "悲観的",
+  "消極的",
+  "否定的",
+  "頑固",
+  "諦め",
+  "儚い",
+  "無理",
+  "無駄",
+  "不可能",
+  "鈍感",
+  "愚か",
+  "狭量",
+  "独善的",
+  "自己中心的",
+  "固執",
+  "無関心",
+  "不寛容",
+  "批判的",
+  "疑り深い",
+  "偏見",
+  "意地悪",
+  "執念深い",
+  "短絡的",
+  "投げやり",
+  "不合理",
+  "わがまま",
+  "冷たい",
+  "不誠実",
+  "残酷",
+  "嘘つき",
+  "ごまかし",
+  "皮肉",
+  "嘲笑",
+  "狡猾",
+  "無責任",
+  "悪意",
+  "不正直",
+  "計算高い",
+  "優柔不断",
+  "卑屈",
+  "逃げる",
+  "さぼる",
+  "責任転嫁",
+  "言い訳",
+  "文句",
+  "批判",
+  "嘘をつく",
+  "約束を破る",
+  "裏切る",
+  "不平を言う",
+  "攻撃的",
+  "無視する",
+  "ぶっきらぼう",
+  "暴言",
+  "無礼",
+  "偉そう",
+  "乱暴",
+  "不注意",
+  "怠慢",
+  "投げやり",
+  "逃避",
+  "開き直る",
+  "傲慢",
+  "見下す",
+  "嫌味",
+  "愚痴",
+  "嫌がらせ",
+  "誹謗中傷",
+  "非協力的",
+  "嘲る",
+  "無頓着",
+  "だらしない",
+  "無関心",
+  "無神経",
+  "騙す",
+  "利己的",
+  "自暴自棄",
+  "ふてくされる",
+  "無愛想",
+  "やる気がない",
+  "失敗",
+  "損失",
+  "不景気",
+  "混乱",
+  "崩壊",
+  "破滅",
+  "災難",
+  "トラブル",
+  "事故",
+  "問題",
+  "不具合",
+  "故障",
+  "中止",
+  "停止",
+  "渋滞",
+  "行き詰まり",
+  "落胆",
+  "暴落",
+  "失職",
+  "貧困",
+  "不調",
+  "疾病",
+  "けが",
+  "怪我",
+  "破産",
+  "倒産",
+  "遅延",
+  "欠陥",
+  "誤解",
+  "不仲",
+  "破局",
+  "離別",
+  "喧嘩",
+  "孤立",
+  "崩れる",
+  "絶たれる",
+  "滅びる",
+  "奪われる",
+  "壊れる",
+  "終わり",
+];
+
+function buildWordPool() {
+  const positives = POSITIVE_WORDS.map((text, idx) => ({
+    baseId: `p${idx + 1}`,
+    text,
+    isPositive: true,
+  }));
+  const negatives = NEGATIVE_WORDS.map((text, idx) => ({
+    baseId: `n${idx + 1}`,
+    text,
+    isPositive: false,
+  }));
+  return [...positives, ...negatives];
+}
+
+// =============== ローカルストレージ系（ベストタイム） ===============
+function bestTimeKeyWord(size) {
+  return `bestTimeWord_${size}`;
+}
+function loadBestTimeWord(size) {
+  const raw = typeof window !== "undefined"
+    ? localStorage.getItem(bestTimeKeyWord(size))
+    : null;
+  if (!raw) return null;
+  const num = Number(raw);
+  if (Number.isNaN(num)) return null;
+  return num;
+}
+function saveBestTimeWord(size, ms) {
+  localStorage.setItem(bestTimeKeyWord(size), String(ms));
+}
+
+// =============== コンポーネント本体 ===============
+export default function GameWordFinder({ onBackToHome }) {
+  const LEVELS = [10, 20, 30, 40, 50];
+
+  // ---- ゲーム状態 ----
+  const [gridSize, setGridSize] = useState(10); // 表示ワード数
+  const [grid, setGrid] = useState([]);
+  const [targets, setTargets] = useState([]); // 正解(ポジティブ)uid
+  const [found, setFound] = useState({});
+  const [penalties, setPenalties] = useState(0);
+  const [wrongFlash, setWrongFlash] = useState({});
+
+  const [running, setRunning] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+
+  const [startTime, setStartTime] = useState(null);
+  const [pendingStartTime, setPendingStartTime] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  // チュートリアル
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [fadeOutTutorial, setFadeOutTutorial] = useState(false);
+  const [targetCount, setTargetCount] = useState(0);
+
+  // サウンド
+  const [showAudioPrompt, setShowAudioPrompt] = useState(true);
+  const [bgmVolume, setBgmVolume] = useState(2); // 初期2で統一
+  const [sfxVolume, setSfxVolume] = useState(2); // 初期2で統一
+
+  const bgmRef = useRef(null);
+  const correctRef = useRef(null);
+  const wrongRef = useRef(null);
+  const clearRef = useRef(null);
+
+  // ハイスコア
+  const [bestTimes, setBestTimes] = useState(() => {
+    const init = {};
+    LEVELS.forEach((lvl) => {
+      init[lvl] = loadBestTimeWord(lvl);
+    });
+    return init;
+  });
+
+  const rafRef = useRef(null);
+
+  // ---- 計算系 ----
+  const allFound = useMemo(() => {
+    if (!targets.length) return false;
+    return targets.every((id) => found[id]);
+  }, [targets, found]);
+
+  const elapsedMs = running && startTime ? now - startTime : 0;
+
+  const finalScoreMs = useMemo(() => {
+    if (!gameOver || !startTime) return null;
+    const base = now - startTime;
+    return base + penalties * 3000;
+  }, [gameOver, startTime, now, penalties]);
+
+  // ---- タイマー ----
+  useEffect(() => {
+    if (!running) return;
+    function tick() {
+      setNow(Date.now());
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [running]);
+
+  // ---- BGM 初期化/片付け ----
+  useEffect(() => {
+    bgmRef.current = new Audio("/BGM.mp3");
+    if (bgmRef.current) {
+      bgmRef.current.loop = true;
+      bgmRef.current.volume = bgmVolume / 10;
+    }
+    return () => {
+      if (bgmRef.current) {
+        bgmRef.current.pause();
+        bgmRef.current.currentTime = 0;
+        bgmRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (bgmRef.current) {
+      bgmRef.current.volume = bgmVolume / 10;
+    }
+  }, [bgmVolume]);
+
+  // ---- ゲーム開始 ----
+  function startGame() {
+    const positiveRatio = 0.3; // 30%が正解
+    const needPositives = Math.max(1, Math.round(gridSize * positiveRatio));
+
+    correctRef.current = new Audio("/correct.mp3");
+    wrongRef.current = new Audio("/wrong.mp3");
+    clearRef.current = new Audio("/clear.mp3");
+
+    const POOL = shuffle(buildWordPool());
+    const posPool = POOL.filter((p) => p.isPositive);
+    const negPool = POOL.filter((p) => !p.isPositive);
+
+    function takeRandomWords(pool, count) {
+      const result = [];
+      for (let i = 0; i < count; i++) {
+        const base = pool[Math.floor(Math.random() * pool.length)];
+        result.push({
+          ...base,
+          uid: base.baseId + "#" + Math.random().toString(36).slice(2),
+        });
+      }
+      return result;
+    }
+
+    const posItems = takeRandomWords(posPool, needPositives);
+    const negItems = takeRandomWords(negPool, gridSize - posItems.length);
+    const merged = shuffle([...posItems, ...negItems]);
+
+    setGrid(merged);
+    setTargets(posItems.map((it) => it.uid));
+    setFound({});
+    setWrongFlash({});
+    setPenalties(0);
+    setGameOver(false);
+
+    const t = Date.now();
+    setPendingStartTime(t);
+    setStartTime(null);
+    setNow(t);
+    setRunning(false);
+
+    setTargetCount(posItems.length);
+
+    setShowTutorial(true);
+    setFadeOutTutorial(false);
+  }
+
+  // チュートリアルOK
+  function beginAfterTutorial() {
+    if (pendingStartTime) {
+      setStartTime(pendingStartTime);
+      setRunning(true);
+    }
+    setFadeOutTutorial(true);
+    setTimeout(() => {
+      setShowTutorial(false);
+      setFadeOutTutorial(false);
+    }, 300);
+  }
+
+  // 中止
+  function stopGame() {
+    setRunning(false);
+    setGameOver(false);
+    setGrid([]);
+    setTargets([]);
+    setFound({});
+    setWrongFlash({});
+    setPenalties(0);
+    setStartTime(null);
+    setPendingStartTime(null);
+    setShowTutorial(false);
+    setFadeOutTutorial(false);
+  }
+
+  // タップ
+  function handleClick(item) {
+    if (!running || gameOver) return;
+    const isTarget = targets.includes(item.uid);
+
+    if (isTarget) {
+      if (correctRef.current) {
+        correctRef.current.currentTime = 0;
+        correctRef.current.volume = sfxVolume / 10;
+        correctRef.current.play();
+      }
+      setFound((prev) => {
+        if (prev[item.uid]) return prev;
+        return { ...prev, [item.uid]: true };
+      });
+    } else {
+      if (wrongRef.current) {
+        wrongRef.current.currentTime = 0;
+        wrongRef.current.volume = sfxVolume / 10;
+        wrongRef.current.play();
+      }
+
+      setPenalties((p) => p + 1);
+
+      setWrongFlash((prev) => ({ ...prev, [item.uid]: true }));
+      setTimeout(() => {
+        setWrongFlash((prev) => {
+          const copy = { ...prev };
+          delete copy[item.uid];
+          return copy;
+        });
+      }, 1000);
+    }
+  }
+
+  // クリア判定
+  useEffect(() => {
+    if (running && allFound && !gameOver) {
+      setRunning(false);
+      setGameOver(true);
+
+      if (clearRef.current) {
+        clearRef.current.currentTime = 0;
+        clearRef.current.volume = sfxVolume / 10;
+        clearRef.current.play();
+      }
+
+      const thisRun = Date.now() - startTime + penalties * 3000;
+      const prevBest = bestTimes[gridSize];
+
+      if (prevBest == null || thisRun < prevBest) {
+        saveBestTimeWord(gridSize, thisRun);
+        setBestTimes((old) => ({
+          ...old,
+          [gridSize]: thisRun,
+        }));
+      }
+    }
+  }, [
+    allFound,
+    running,
+    gameOver,
+    startTime,
+    penalties,
+    gridSize,
+    bestTimes,
+    sfxVolume,
+  ]);
+
+  // サウンド許可
+  function handleAudioConsent(allow) {
+    if (allow) {
+      if (bgmRef.current) {
+        bgmRef.current.volume = bgmVolume / 10;
+        bgmRef.current.loop = true;
+        bgmRef.current.play();
+      }
+    } else {
+      setBgmVolume(0);
+      setSfxVolume(0);
+      if (bgmRef.current) {
+        bgmRef.current.pause();
+        bgmRef.current.currentTime = 0;
+      }
+    }
+    setShowAudioPrompt(false);
+  }
+
+  function onChangeBgmVolume(e) {
+    const v = Number(e.target.value);
+    setBgmVolume(v);
+    if (bgmRef.current) {
+      bgmRef.current.volume = v / 10;
+    }
+  }
+  function onChangeSfxVolume(e) {
+    const v = Number(e.target.value);
+    setSfxVolume(v);
+  }
+
+  // =============== スタイル共通 ===============
+  const appBgStyle = {
+    minHeight: "100vh",
+    background:
+      "linear-gradient(135deg, #fffbe6 0%, #e0f7ff 60%, #e8f9f1 100%)",
+    backgroundAttachment: "fixed",
+    fontFamily: "system-ui, sans-serif",
+  };
+
+  const outerWrapStyle = {
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "16px",
+  };
+
+  const controlPanelStyle = {
+    backgroundColor: "rgba(255,255,255,0.8)",
+    backdropFilter: "blur(4px)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+    borderRadius: "16px",
+    padding: "16px",
+  };
+
+  const boardPanelStyle = {
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+    padding: "8px",
+    position: "relative",
+    marginTop: "16px",
+  };
+
+  const headerRowStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "12px",
+  };
+
+  const headerTextStyle = {
+    background:
+      "linear-gradient(90deg, #0ea5e9 0%, #38bdf8 30%, #34d399 60%, #fde047 100%)",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    fontWeight: "700",
+    fontSize: "20px",
+  };
+
+  const backBtnStyle = {
+    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "8px 12px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "500",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  };
+
+  const statsRowStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    fontSize: "13px",
+    marginBottom: "12px",
+  };
+
+  const chipStyle = {
+    backgroundColor: "#ffffffcc",
+    border: "1px solid #fff",
+    borderRadius: "10px",
+    padding: "6px 10px",
+    lineHeight: 1.2,
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    fontWeight: 500,
+  };
+
+  const levelBlockStyle = {
+    marginBottom: "12px",
+  };
+
+  const levelTitleStyle = {
+    fontSize: "14px",
+    marginBottom: "8px",
+    color: "#1f2937",
+    fontWeight: 600,
+  };
+
+  const levelButtonsWrapStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  };
+
+  const levelButtonBase = (active) => ({
+    border: active ? "2px solid #38bdf8" : "1px solid #ccc",
+    background: active
+      ? "linear-gradient(90deg,#bae6fd,#d9f99d)"
+      : "#fff",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontSize: "14px",
+    cursor: running ? "not-allowed" : "pointer",
+    boxShadow: active
+      ? "0 4px 10px rgba(56,189,248,0.4)"
+      : "0 2px 4px rgba(0,0,0,0.05)",
+    opacity: running ? 0.6 : 1,
+    fontWeight: 600,
+  });
+
+  // サウンド設定（コンパクト）
+  const soundSectionTitleStyle = {
+    marginBottom: "12px",
+    fontSize: "14px",
+    fontWeight: 600,
+    color: "#1f2937",
+  };
+
+  const soundRowStyle = {
+    display: "grid",
+    gridTemplateColumns: "minmax(80px,auto) 1fr auto",
+    alignItems: "center",
+    rowGap: "8px",
+    columnGap: "12px",
+    fontSize: "13px",
+    color: "#374151",
+    marginBottom: "12px",
+  };
+
+  const soundLabelStyle = {
+    fontWeight: 600,
+    lineHeight: 1.2,
+    color: "#1f2937",
+  };
+
+  const soundValueStyle = {
+    minWidth: "32px",
+    textAlign: "right",
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "#111827",
+  };
+
+  // スタート・中止
+  const actionRowStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  };
+
+  const mainButtonStyle = {
+    background:
+      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "600",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  };
+
+  const stopButtonStyle = {
+    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "500",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  };
+
+  // 盤面（ワードカード）
+  const gridAreaStyle = {
+    marginTop: "4px",
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "8px",
+    maxHeight: "70vh",
+    overflowY: "auto",
+    position: "relative",
+    borderRadius: "8px",
+  };
+
+  // カード
+  const wordCardStyle = (alreadyFound) => ({
+    position: "relative",
+    borderRadius: "10px",
+    border: "1px solid #fcd34d",
+    padding: "8px",
+    cursor: "pointer",
+    overflow: "hidden",
+    background:
+      "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
+    minHeight: "60px",
+    aspectRatio: "2 / 1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow:
+      "0 4px 8px rgba(253,186,116,0.3), 0 0 12px rgba(255,161,64,0.2)",
+    textAlign: "center",
+    fontSize: "14px",
+    fontWeight: "600",
+    lineHeight: 1.4,
+    color: alreadyFound ? "#6b7280" : "#78350f",
+    filter: alreadyFound ? "grayscale(100%) blur(1px)" : "none",
+    opacity: alreadyFound ? 0.6 : 1,
+  });
+
+  // オーバーレイ（チュートリアル＆結果）
+  const overlayStyle = {
+    position: "absolute",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    textAlign: "center",
+    zIndex: 40,
+  };
+
+  const overlayInnerStyle = {
+    backgroundColor: "rgba(255,255,255,0.95)",
+    color: "#1f2937",
+    borderRadius: "16px",
+    padding: "20px",
+    maxWidth: "260px",
+    width: "100%",
+    boxShadow:
+      "0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16,185,129,0.55)",
+    border: "2px solid #6ee7b7",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    fontWeight: 500,
+  };
+
+  const overlayButtonStyle = {
+    background:
+      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+    color: "#fff",
+    border: "none",
+    width: "100%",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow:
+      "0 8px 20px rgba(0,0,0,0.25),0 0 16px rgba(16,185,129,0.6)",
+  };
+
+  // サウンド許可モーダル
+  const audioPromptOverlayStyle = {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    zIndex: 100,
+    display: showAudioPrompt ? "flex" : "none",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    color: "#fff",
+    textAlign: "center",
+  };
+
+  const audioPromptCardStyle = {
+    backgroundColor: "#fff",
+    color: "#1f2937",
+    borderRadius: "16px",
+    padding: "20px",
+    maxWidth: "300px",
+    width: "100%",
+    boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    fontWeight: 500,
+  };
+
+  const audioPromptBtnYes = {
+    background:
+      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    width: "100%",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
+  };
+
+  const audioPromptBtnNo = {
+    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    width: "100%",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
+  };
+
+  return (
+    <div style={appBgStyle}>
+      {/* ---- サウンドの許可 ---- */}
+      <div style={audioPromptOverlayStyle}>
+        <div style={audioPromptCardStyle}>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: "700",
+              color: "#065f46",
+              marginBottom: "8px",
+              textAlign: "center",
+            }}
+          >
+            サウンドの許可
+          </div>
+          <div
+            style={{
+              color: "#1f2937",
+              marginBottom: "16px",
+              textAlign: "center",
+            }}
+          >
+            BGMと効果音を再生してもいいですか？
+            <br />
+            （あとから音量は変えられます）
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            <button
+              onClick={() => handleAudioConsent(true)}
+              style={audioPromptBtnYes}
+            >
+              はい（音ありで遊ぶ）
+            </button>
+            <button
+              onClick={() => handleAudioConsent(false)}
+              style={audioPromptBtnNo}
+            >
+              いいえ（音なしで遊ぶ）
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={outerWrapStyle}>
+        {/* ================= 上側まとめブロック ================= */}
+        <div style={controlPanelStyle}>
+          {/* タイトル＋戻る */}
+          <div style={headerRowStyle}>
+            <div style={headerTextStyle}>Positive Word Finder</div>
+            <button onClick={onBackToHome} style={backBtnStyle}>
+              ← ホームへ
+            </button>
+          </div>
+
+          {/* ステータス */}
+          <div style={statsRowStyle}>
+            <div style={chipStyle}>
+              <strong>タイム:</strong>{" "}
+              {finalScoreMs !== null
+                ? msToClock(finalScoreMs)
+                : msToClock(elapsedMs)}
+            </div>
+
+            <div style={chipStyle}>
+              <strong>見つけたポジティブ:</strong>{" "}
+              {Object.keys(found).length}/{targets.length || "?"}
+            </div>
+
+            <div style={chipStyle}>
+              <strong>ミス:</strong> {penalties}回 (+{penalties * 3}s)
+            </div>
+
+            <div style={chipStyle}>
+              <strong>ベスト:</strong>{" "}
+              {bestTimes[gridSize] != null
+                ? msToClock(bestTimes[gridSize])
+                : "–"}
+            </div>
+          </div>
+
+          {/* レベル選択 */}
+          <div style={levelBlockStyle}>
+            <div style={levelTitleStyle}>
+              レベル（表示ワード数）：
+              <span style={{ marginLeft: "4px", fontWeight: 700 }}>
+                {gridSize}個
+              </span>
+            </div>
+
+            <div style={levelButtonsWrapStyle}>
+              {LEVELS.map((num) => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    if (!running) setGridSize(num);
+                  }}
+                  style={levelButtonBase(gridSize === num)}
+                  disabled={running}
+                >
+                  {num}個
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* サウンド設定（コンパクト） */}
+          <div style={soundSectionTitleStyle}>サウンド設定</div>
+
+          <div style={soundRowStyle}>
+            <div style={soundLabelStyle}>BGM</div>
+            <input
+              id="bgmRangeWord"
+              type="range"
+              min={0}
+              max={10}
+              value={bgmVolume}
+              onChange={onChangeBgmVolume}
+              style={{
+                width: "100%",
+                height: "24px",
+                cursor: "pointer",
+              }}
+            />
+            <div style={soundValueStyle}>{bgmVolume}/10</div>
+          </div>
+
+          <div style={soundRowStyle}>
+            <div style={soundLabelStyle}>効果音</div>
+            <input
+              id="sfxRangeWord"
+              type="range"
+              min={0}
+              max={10}
+              value={sfxVolume}
+              onChange={onChangeSfxVolume}
+              style={{
+                width: "100%",
+                height: "24px",
+                cursor: "pointer",
+              }}
+            />
+            <div style={soundValueStyle}>{sfxVolume}/10</div>
+          </div>
+
+          {/* スタート・中止 */}
+          <div style={actionRowStyle}>
+            <button onClick={startGame} style={mainButtonStyle}>
+              スタート / もう一回
+            </button>
+
+            <button onClick={stopGame} style={stopButtonStyle}>
+              中止
+            </button>
+          </div>
+        </div>
+
+        {/* ================= 盤面ブロック ================= */}
+        <div style={boardPanelStyle}>
+          <div style={gridAreaStyle}>
+            {grid.length === 0 ? (
+              <div
+                style={{
+                  gridColumn: "1 / -1",
+                  fontSize: "14px",
+                  color: "#4b5563",
+                  border: "2px dashed #93c5fd",
+                  borderRadius: "8px",
+                  padding: "24px",
+                  textAlign: "center",
+                  backgroundColor: "#fff",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+                }}
+              >
+                「スタート / もう一回」を押してゲーム開始！
+              </div>
+            ) : (
+              grid.map((item) => {
+                const alreadyFound = !!found[item.uid];
+                const wasWrong = !!wrongFlash[item.uid];
+
+                return (
+                  <button
+                    key={item.uid}
+                    onClick={() => handleClick(item)}
+                    style={wordCardStyle(alreadyFound)}
+                  >
+                    <div
+                      style={{
+                        padding: "4px 6px",
+                        wordBreak: "keep-all",
+                      }}
+                    >
+                      {item.text}
+                    </div>
+
+                    {/* FOUND */}
+                    {alreadyFound && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                          backgroundColor: "rgba(0,0,0,0.4)",
+                          textShadow: "0 0 4px #000",
+                        }}
+                      >
+                        FOUND
+                      </div>
+                    )}
+
+                    {/* MISS */}
+                    {wasWrong && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          backgroundColor: "rgba(0,0,0,0.4)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          color: "#ff4d4d",
+                          fontSize: "28px",
+                          textShadow:
+                            "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
+                        }}
+                      >
+                        ✖
+                      </div>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* チュートリアル（「あります。」を必ず次の段に落とす） */}
+          {showTutorial && (
+            <div
+              style={{
+                ...overlayStyle,
+                opacity: fadeOutTutorial ? 0 : 1,
+                transition: "opacity 0.3s ease",
+                pointerEvents: fadeOutTutorial ? "none" : "auto",
+              }}
+            >
+              <div style={overlayInnerStyle}>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#065f46",
+                    marginBottom: "8px",
+                  }}
+                >
+                  ルール説明
+                </div>
+
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    color: "#064e3b",
+                  }}
+                >
+                  この中に
+                  <br />
+                  <strong style={{ fontSize: "16px" }}>
+                    やさしい・安心できる言葉が {targetCount} 個
+                  </strong>
+                  <br />
+                  あります。
+                  <br />
+                  その言葉だけタップしてね！
+                  <br />
+                  間違えると+3秒ペナルティ！
+                </div>
+
+                <button
+                  onClick={beginAfterTutorial}
+                  style={overlayButtonStyle}
+                >
+                  OK！スタート！
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* クリア後 */}
+          {gameOver && (
+            <div style={overlayStyle}>
+              <div style={overlayInnerStyle}>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#065f46",
+                    marginBottom: "8px",
+                  }}
+                >
+                  クリアおめでとう！ 🎉
+                </div>
+
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    color: "#064e3b",
+                  }}
+                >
+                  記録:{" "}
+                  <strong style={{ fontSize: "16px" }}>
+                    {finalScoreMs !== null
+                      ? msToClock(finalScoreMs)
+                      : msToClock(elapsedMs)}
+                  </strong>
+                  <br />
+                  ミス {penalties}回
+                  <br />
+                  ベスト({gridSize}個):{" "}
+                  {bestTimes[gridSize] != null
+                    ? msToClock(bestTimes[gridSize])
+                    : "–"}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    lineHeight: 1.4,
+                    fontWeight: 500,
+                  }}
+                >
+                  「スタート / もう一回」で
+                  くり返しあそべます
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* ================= /盤面ブロック ================= */}
+      </div>
+    </div>
+  );
+}
