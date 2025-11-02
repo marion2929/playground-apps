@@ -369,14 +369,22 @@ export default function HomeScreen({
           <div style={sliderLabelStyle}>
             <span>音量: {volume}/10</span>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={10}
-            value={volume}
-            onChange={handleVolumeChange}
-            style={sliderInputStyle}
-          />
+<input
+  type="range"
+  min={0}
+  max={10}
+  step={1}
+  value={volume}
+  onChange={handleVolumeChange}
+  style={{
+    width: "100%",
+    accentColor: "#3b82f6", // （この行は見た目の色だけ。なくてもOK）
+  }}
+/>
+<div style={{ fontSize: "12px", textAlign: "right", color: "#6b7280" }}>
+  音量: {volume}/10
+</div>
+
 
           {/* 再生位置スライダー */}
           <div style={sliderLabelStyle}>
