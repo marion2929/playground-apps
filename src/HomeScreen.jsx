@@ -1,4 +1,3 @@
-// src/HomeScreen.jsx
 import React, { useState, useRef, useEffect } from "react";
 
 export default function HomeScreen({
@@ -7,7 +6,7 @@ export default function HomeScreen({
   onSelectLinesFinder,
 }) {
   // =========================
-  // 楽曲リスト（あなたの指定）
+  // 曲リスト（あなた指定の最新版）
   // =========================
   const TRACKS = [
     { title: "やさしいBGM 01", src: "/BGM.mp3" },
@@ -21,108 +20,177 @@ export default function HomeScreen({
     { title: "夕立のあとで", src: "/music05.mp3" },
   ];
 
-  // =========================
-  // オーディオ関連の状態
-  // =========================
-  const [selectedSrc, setSelectedSrc] = useState(TRACKS[0].src);
+  // 再生状態
+  const [trackIndex, setTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume10, setVolume10] = useState(5);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+
+  // 音量（0～10）
+  const [volume, setVolume] = useState(5);
+
+  // 再生位置
+  const [currentTime, setCurrentTime] = useState(0); // 秒
+  const [duration, setDuration] = useState(0); // 秒
+
   const audioRef = useRef(null);
+  const currentTrack = TRACKS[trackIndex];
 
-  useEffect(() => {
-    const audioEl = audioRef.current;
-    if (!audioEl) return;
-    audioEl.src = selectedSrc;
-    audioEl.currentTime = 0;
-    setCurrentTime(0);
-    setDuration(0);
-    if (isPlaying) {
-      audioEl.play().catch(() => {});
-    }
-  }, [selectedSrc, isPlaying]);
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume10 / 10;
-  }, [volume10]);
-
-  const handlePlayPause = () => {
-    const audioEl = audioRef.current;
-    if (!audioEl) return;
-    if (isPlaying) {
-      audioEl.pause();
-      setIsPlaying(false);
-    } else {
-      audioEl.play().then(() => setIsPlaying(true)).catch(() => {});
-    }
-  };
-
-  const handleSeek = (e) => {
-    const audioEl = audioRef.current;
-    if (!audioEl) return;
-    const newTime = Number(e.target.value);
-    audioEl.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) setCurrentTime(audioRef.current.currentTime || 0);
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration || 0);
-  };
-
-  const handleEnded = () => setIsPlaying(false);
-
-  const formatTime = (sec) => {
-    if (!isFinite(sec)) return "0:00";
+  // mm:ss に整形
+  function toClock(sec) {
     const s = Math.floor(sec);
     const mPart = Math.floor(s / 60);
     const sPart = s % 60;
-    return `${mPart}:${sPart.toString().padStart(2, "0")}`;
-  };
+    return mPart.toString() + ":" + sPart.toString().padStart(2, "0");
+  }
+
+  // 再生/一時停止
+  function togglePlay() {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {
+          // モバイルの自動再生ブロックなどで失敗することはある
+        });
+    }
+  }
+
+  // 曲を選んだ時
+  function handleSelectTrack(e) {
+    const idx = Number(e.target.value);
+    if (idx === trackIndex) return;
+    setTrackIndex(idx);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }
+
+  // 音量スライダー
+  function handleVolumeChange(e) {
+    const v = Number(e.target.value);
+    setVolume(v);
+  }
+
+  // シークバー（再生位置）
+  function handleSeekChange(e) {
+    const sec = Number(e.target.value);
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = sec;
+    setCurrentTime(sec);
+  }
+
+  // 音量を常に同期
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 10; // 0.0〜1.0
+    }
+  }, [volume]);
+
+  // audioイベント監視
+  useEffect(() => {
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+
+    function onLoadedMeta() {
+      setDuration(audioEl.duration || 0);
+    }
+    function onTimeUpdate() {
+      setCurrentTime(audioEl.currentTime || 0);
+    }
+    function onEnded() {
+      setIsPlaying(false); // ループしない、止めるだけ
+    }
+
+    audioEl.addEventListener("loadedmetadata", onLoadedMeta);
+    audioEl.addEventListener("timeupdate", onTimeUpdate);
+    audioEl.addEventListener("ended", onEnded);
+
+    return () => {
+      audioEl.removeEventListener("loadedmetadata", onLoadedMeta);
+      audioEl.removeEventListener("timeupdate", onTimeUpdate);
+      audioEl.removeEventListener("ended", onEnded);
+    };
+  }, [trackIndex]);
+
+  // トラック切り替え時にaudio差し替え
+  useEffect(() => {
+    if (!audioRef.current) return;
+    const el = audioRef.current;
+    el.pause();
+    el.currentTime = 0;
+    setCurrentTime(0);
+    setDuration(0);
+
+    if (isPlaying) {
+      // すぐplayしようとするとブラウザが嫌がることあるのでちょい遅らせる
+      setTimeout(() => {
+        el
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch(() => setIsPlaying(false));
+      }, 50);
+    }
+  }, [trackIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // スタイル
   // =========================
+
+  // 画面全体（背景グラデ）
   const bgStyle = {
     minHeight: "100vh",
     background:
       "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
     backgroundAttachment: "fixed",
     fontFamily: "system-ui, sans-serif",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "flex-start",
     padding: "24px 16px 80px",
+    boxSizing: "border-box",
+    maxWidth: "100%",
+    overflowX: "hidden",
+    display: "flex",
+    justifyContent: "flex-start",
   };
 
-  const cardStyle = {
+  // ← NEW: 中身をまとめる共通ラッパ
+  // これで中のカード群が常に同じ幅(最大360pxとか)で揃うので
+  // スマホでも「はみ出してるように見える」現象を防ぐ
+  const innerWrapStyle = {
+    width: "100%",
+    maxWidth: "360px", // ここが「見せたい幅」
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    margin: "0 auto", // 画面中央に寄せる
+  };
+
+  // 白カード（ゲーム選択／プレイヤー）共通
+  const baseCard = {
     backgroundColor: "rgba(255,255,255,0.8)",
     backdropFilter: "blur(4px)",
     border: "1px solid rgba(255,255,255,0.6)",
     borderRadius: "16px",
     boxShadow: "0 16px 40px rgba(0,0,0,0.08)",
     padding: "16px",
-    width: "100%",
-    maxWidth: "380px",
-    margin: "0 auto 24px",
+    boxSizing: "border-box",
+    width: "100%", // innerWrapの幅にフィット
   };
 
+  // タイトル(Positive Playroom)
   const titleTextStyle = {
     background:
       "linear-gradient(90deg,#0ea5e9 0%,#38bdf8 30%,#34d399 60%,#fde047 100%)",
     WebkitBackgroundClip: "text",
     color: "transparent",
-    fontSize: "22px",
+    fontSize: "20px",
     fontWeight: "700",
     textAlign: "center",
     marginBottom: "12px",
   };
 
+  // サブテキスト
   const subTextStyle = {
     color: "#374151",
     fontSize: "14px",
@@ -132,89 +200,93 @@ export default function HomeScreen({
     marginBottom: "20px",
   };
 
-  const gameButtonStyleMain = {
-    background:
-      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+  // ボタンたち
+  const mainBtnStyle = {
+    background: "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
     color: "#fff",
     border: "none",
-    borderRadius: "12px",
-    boxShadow: "0 16px 32px rgba(0,0,0,0.15)",
+    borderRadius: "8px",
     fontWeight: "600",
-    fontSize: "16px",
-    padding: "14px 16px",
+    fontSize: "15px",
+    padding: "12px 14px",
     width: "100%",
     cursor: "pointer",
     textAlign: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
   };
 
-  const gameButtonStyleAlt = {
-    background:
-      "linear-gradient(90deg,#facc15 0%,#fcd34d 30%,#86efac 100%)",
+  const altBtnStyle = {
+    background: "linear-gradient(90deg,#facc15 0%,#fcd34d 30%,#86efac 100%)",
     color: "#1f2937",
     border: "none",
-    borderRadius: "12px",
-    boxShadow: "0 16px 32px rgba(0,0,0,0.15)",
+    borderRadius: "8px",
     fontWeight: "600",
-    fontSize: "16px",
-    padding: "14px 16px",
+    fontSize: "15px",
+    padding: "12px 14px",
     width: "100%",
     cursor: "pointer",
     textAlign: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
   };
 
-  const musicTitleStyle = {
+  // プレイヤー見出し
+  const playerHeaderStyle = {
     fontWeight: "700",
-    fontSize: "16px",
+    fontSize: "15px",
     color: "#0ea5e9",
     textAlign: "center",
     marginBottom: "12px",
   };
 
-  const rowStyle = {
-    marginBottom: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  };
-
-  const labelStyle = {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#374151",
-  };
-
+  // セレクトボックス＋ボタンの並び
   const selectStyle = {
     width: "100%",
-    borderRadius: "8px",
-    border: "1px solid #93c5fd",
-    padding: "8px",
     fontSize: "14px",
+    borderRadius: "6px",
+    border: "1px solid #9ca3af",
+    padding: "8px",
+    boxSizing: "border-box",
+    marginBottom: "12px",
     backgroundColor: "#fff",
-    color: "#1f2937",
-    fontWeight: "500",
   };
 
   const playButtonStyle = {
-    backgroundColor: "#3b82f6",
+    width: "100%",
+    background:
+      "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#1d4ed8 100%)",
     color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 16px",
     fontWeight: "600",
     fontSize: "14px",
+    border: "1px solid #1e40af",
+    borderRadius: "6px",
+    padding: "10px",
+    marginBottom: "16px",
     cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
-    minWidth: "80px",
-    textAlign: "center",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.2)",
   };
 
-  const sliderStyle = { width: "100%" };
-  const timeRowStyle = {
+  // ラベル＋スライダー
+  const sliderLabelStyle = {
     fontSize: "12px",
-    color: "#6b7280",
+    fontWeight: "600",
+    color: "#374151",
     display: "flex",
     justifyContent: "space-between",
-    fontFamily: "monospace",
+    marginBottom: "4px",
+  };
+
+  const sliderInputStyle = {
+    width: "100%",
+    marginBottom: "12px",
+  };
+
+  const timeRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    color: "#4b5563",
+    marginTop: "-8px",
+    marginBottom: "16px",
   };
 
   // =========================
@@ -222,102 +294,115 @@ export default function HomeScreen({
   // =========================
   return (
     <div style={bgStyle}>
-      {/* --- メインカード：説明＋ゲームボタン --- */}
-      <div style={cardStyle}>
-        <div style={titleTextStyle}>Positive Playroom</div>
-        <div style={subTextStyle}>
-          ミニゲームや音楽を通して
-          <br />
-          心を少し軽くする、やさしい遊び場です。
-          <br />
-          スキマ時間の気分転換にどうぞ🍀
+      {/* 中身を中央にまとめるラッパ */}
+      <div style={innerWrapStyle}>
+        {/* --- ゲーム選択カード --- */}
+        <div style={baseCard}>
+          <div style={titleTextStyle}>Positive Playroom</div>
+
+          <div style={subTextStyle}>
+            ミニゲームや音楽を通して
+            <br />
+            心を少し軽くする、やさしい遊び場です。
+            <br />
+            スキマ時間の気分転換にどうぞ🍀
+          </div>
+
+          <div style={{ display: "grid", gap: "10px" }}>
+            <button
+              style={mainBtnStyle}
+              onClick={onSelectSmileFinder}
+            >
+              Smile Finder（表情を見分ける）
+            </button>
+
+            <button
+              style={altBtnStyle}
+              onClick={onSelectWordFinder}
+            >
+              Positive Word Finder（ことばを見分ける）
+            </button>
+
+            <button
+              style={altBtnStyle}
+              onClick={onSelectLinesFinder}
+            >
+              Positive Lines Finder（伝え方を見分ける）
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: "grid", gap: "12px" }}>
-          <button
-            style={gameButtonStyleMain}
-            onClick={onSelectSmileFinder}
-          >
-            Smile Finder（表情を見分ける）
-          </button>
-          <button
-            style={gameButtonStyleAlt}
-            onClick={onSelectWordFinder}
-          >
-            Positive Word Finder（ことばを見分ける）
-          </button>
-          <button
-            style={gameButtonStyleAlt}
-            onClick={onSelectLinesFinder}
-          >
-            Positive Lines Finder（伝え方を見分ける）
-          </button>
-        </div>
-      </div>
+        {/* --- 音楽プレイヤーカード --- */}
+        <div style={baseCard}>
+          <div style={playerHeaderStyle}>音楽プレイヤー</div>
 
-      {/* --- 音楽プレイヤー --- */}
-      <div style={cardStyle}>
-        <div style={musicTitleStyle}>音楽プレイヤー</div>
-
-        {/* 曲選択 */}
-        <div style={rowStyle}>
-          <div style={labelStyle}>曲を選ぶ</div>
+          {/* 曲を選ぶ */}
+          <label
+            style={{
+              fontSize: "12px",
+              fontWeight: "600",
+              color: "#374151",
+              display: "block",
+              marginBottom: "4px",
+            }}
+          >
+            曲を選ぶ
+          </label>
           <select
             style={selectStyle}
-            value={selectedSrc}
-            onChange={(e) => setSelectedSrc(e.target.value)}
+            value={trackIndex}
+            onChange={handleSelectTrack}
           >
-            {TRACKS.map((track, i) => (
-              <option key={i} value={track.src}>
-                {track.title}
+            {TRACKS.map((t, i) => (
+              <option key={i} value={i}>
+                {t.title}
               </option>
             ))}
           </select>
-        </div>
 
-        {/* 再生/音量 */}
-        <div style={rowStyle}>
-          <button style={playButtonStyle} onClick={handlePlayPause}>
+          {/* 再生・一時停止 */}
+          <button style={playButtonStyle} onClick={togglePlay}>
             {isPlaying ? "一時停止" : "再生"}
           </button>
-          <div style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>
-            音量: {volume10}/10
+
+          {/* 音量スライダー */}
+          <div style={sliderLabelStyle}>
+            <span>音量: {volume}/10</span>
           </div>
           <input
-            style={sliderStyle}
             type="range"
             min={0}
             max={10}
-            value={volume10}
-            onChange={(e) => setVolume10(Number(e.target.value))}
+            value={volume}
+            onChange={handleVolumeChange}
+            style={sliderInputStyle}
           />
-        </div>
 
-        {/* シークバー */}
-        <div style={rowStyle}>
-          <div style={labelStyle}>再生位置</div>
+          {/* 再生位置スライダー */}
+          <div style={sliderLabelStyle}>
+            <span>再生位置</span>
+          </div>
           <input
-            style={sliderStyle}
             type="range"
             min={0}
             max={duration || 0}
-            step={0.01}
+            step={0.1}
             value={currentTime}
-            onChange={handleSeek}
+            onChange={handleSeekChange}
+            style={sliderInputStyle}
           />
           <div style={timeRowStyle}>
-            <div>{formatTime(currentTime)}</div>
-            <div>{formatTime(duration)}</div>
+            <span>{toClock(currentTime)}</span>
+            <span>{toClock(duration)}</span>
           </div>
-        </div>
 
-        <audio
-          ref={audioRef}
-          src={selectedSrc}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onEnded={handleEnded}
-        />
+          {/* 実際のaudio要素（画面に見せない） */}
+          <audio
+            ref={audioRef}
+            src={currentTrack.src}
+            preload="metadata"
+          />
+        </div>
       </div>
     </div>
   );
