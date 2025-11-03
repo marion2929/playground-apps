@@ -25,6 +25,7 @@ function msToClock(ms) {
 }
 
 // =============== データ準備（単語） ===============
+
 // 正解ワード80個（ポジティブ）
 const POSITIVE_WORDS = [
   "明るい",
@@ -109,7 +110,7 @@ const POSITIVE_WORDS = [
   "愛情深い",
 ];
 
-// 不正解ワード160個（ネガティブ）
+// 不正解ワード（ネガティブ）
 const NEGATIVE_WORDS = [
   "悲しい",
   "寂しい",
@@ -292,9 +293,10 @@ function bestTimeKeyWord(size) {
   return `bestTimeWord_${size}`;
 }
 function loadBestTimeWord(size) {
-  const raw = typeof window !== "undefined"
-    ? localStorage.getItem(bestTimeKeyWord(size))
-    : null;
+  const raw =
+    typeof window !== "undefined"
+      ? localStorage.getItem(bestTimeKeyWord(size))
+      : null;
   if (!raw) return null;
   const num = Number(raw);
   if (Number.isNaN(num)) return null;
@@ -311,7 +313,7 @@ export default function GameWordFinder({ onBackToHome }) {
   // ---- ゲーム状態 ----
   const [gridSize, setGridSize] = useState(10); // 表示ワード数
   const [grid, setGrid] = useState([]);
-  const [targets, setTargets] = useState([]); // 正解(ポジティブ)uid
+  const [targets, setTargets] = useState([]); // 正解uid
   const [found, setFound] = useState({});
   const [penalties, setPenalties] = useState(0);
   const [wrongFlash, setWrongFlash] = useState({});
@@ -323,22 +325,17 @@ export default function GameWordFinder({ onBackToHome }) {
   const [pendingStartTime, setPendingStartTime] = useState(null);
   const [now, setNow] = useState(Date.now());
 
-  // チュートリアル
+  // チュートリアルオーバーレイ
   const [showTutorial, setShowTutorial] = useState(false);
   const [fadeOutTutorial, setFadeOutTutorial] = useState(false);
   const [targetCount, setTargetCount] = useState(0);
 
-  // サウンド
-  const [showAudioPrompt, setShowAudioPrompt] = useState(true);
-  const [bgmVolume, setBgmVolume] = useState(2); // 初期2で統一
-  const [sfxVolume, setSfxVolume] = useState(2); // 初期2で統一
-
-  const bgmRef = useRef(null);
+  // 効果音だけ残す
   const correctRef = useRef(null);
   const wrongRef = useRef(null);
   const clearRef = useRef(null);
 
-  // ハイスコア
+  // ベストタイム
   const [bestTimes, setBestTimes] = useState(() => {
     const init = {};
     LEVELS.forEach((lvl) => {
@@ -347,6 +344,7 @@ export default function GameWordFinder({ onBackToHome }) {
     return init;
   });
 
+  // requestAnimationFrame
   const rafRef = useRef(null);
 
   // ---- 計算系 ----
@@ -376,38 +374,17 @@ export default function GameWordFinder({ onBackToHome }) {
     };
   }, [running]);
 
-  // ---- BGM 初期化/片付け ----
-  useEffect(() => {
-    bgmRef.current = new Audio("/BGM.mp3");
-    if (bgmRef.current) {
-      bgmRef.current.loop = true;
-      bgmRef.current.volume = bgmVolume / 10;
-    }
-    return () => {
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-        bgmRef.current.currentTime = 0;
-        bgmRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (bgmRef.current) {
-      bgmRef.current.volume = bgmVolume / 10;
-    }
-  }, [bgmVolume]);
-
   // ---- ゲーム開始 ----
   function startGame() {
     const positiveRatio = 0.3; // 30%が正解
     const needPositives = Math.max(1, Math.round(gridSize * positiveRatio));
 
+    // 効果音準備
     correctRef.current = new Audio("/correct.mp3");
     wrongRef.current = new Audio("/wrong.mp3");
     clearRef.current = new Audio("/clear.mp3");
 
+    // カード生成
     const POOL = shuffle(buildWordPool());
     const posPool = POOL.filter((p) => p.isPositive);
     const negPool = POOL.filter((p) => !p.isPositive);
@@ -447,7 +424,7 @@ export default function GameWordFinder({ onBackToHome }) {
     setFadeOutTutorial(false);
   }
 
-  // チュートリアルOK
+  // チュートリアルOK → 本計測開始
   function beginAfterTutorial() {
     if (pendingStartTime) {
       setStartTime(pendingStartTime);
@@ -483,8 +460,7 @@ export default function GameWordFinder({ onBackToHome }) {
     if (isTarget) {
       if (correctRef.current) {
         correctRef.current.currentTime = 0;
-        correctRef.current.volume = sfxVolume / 10;
-        correctRef.current.play();
+        correctRef.current.play().catch(() => {});
       }
       setFound((prev) => {
         if (prev[item.uid]) return prev;
@@ -493,8 +469,7 @@ export default function GameWordFinder({ onBackToHome }) {
     } else {
       if (wrongRef.current) {
         wrongRef.current.currentTime = 0;
-        wrongRef.current.volume = sfxVolume / 10;
-        wrongRef.current.play();
+        wrongRef.current.play().catch(() => {});
       }
 
       setPenalties((p) => p + 1);
@@ -518,8 +493,7 @@ export default function GameWordFinder({ onBackToHome }) {
 
       if (clearRef.current) {
         clearRef.current.currentTime = 0;
-        clearRef.current.volume = sfxVolume / 10;
-        clearRef.current.play();
+        clearRef.current.play().catch(() => {});
       }
 
       const thisRun = Date.now() - startTime + penalties * 3000;
@@ -533,49 +507,9 @@ export default function GameWordFinder({ onBackToHome }) {
         }));
       }
     }
-  }, [
-    allFound,
-    running,
-    gameOver,
-    startTime,
-    penalties,
-    gridSize,
-    bestTimes,
-    sfxVolume,
-  ]);
+  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes]);
 
-  // サウンド許可
-  function handleAudioConsent(allow) {
-    if (allow) {
-      if (bgmRef.current) {
-        bgmRef.current.volume = bgmVolume / 10;
-        bgmRef.current.loop = true;
-        bgmRef.current.play();
-      }
-    } else {
-      setBgmVolume(0);
-      setSfxVolume(0);
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-        bgmRef.current.currentTime = 0;
-      }
-    }
-    setShowAudioPrompt(false);
-  }
-
-  function onChangeBgmVolume(e) {
-    const v = Number(e.target.value);
-    setBgmVolume(v);
-    if (bgmRef.current) {
-      bgmRef.current.volume = v / 10;
-    }
-  }
-  function onChangeSfxVolume(e) {
-    const v = Number(e.target.value);
-    setSfxVolume(v);
-  }
-
-  // =============== スタイル共通 ===============
+  // =============== スタイル ===============
   const appBgStyle = {
     minHeight: "100vh",
     background:
@@ -599,24 +533,13 @@ export default function GameWordFinder({ onBackToHome }) {
     padding: "16px",
   };
 
-  const boardPanelStyle = {
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
-    borderRadius: "16px",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
-    padding: "8px",
-    position: "relative",
-    marginTop: "16px",
-  };
-
   const headerRowStyle = {
     display: "flex",
-    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "8px",
     marginBottom: "12px",
+    flexWrap: "wrap",
+    gap: "8px",
   };
 
   const headerTextStyle = {
@@ -640,9 +563,10 @@ export default function GameWordFinder({ onBackToHome }) {
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
 
-  const statsRowStyle = {
-    display: "flex",
-    flexWrap: "wrap",
+  // ★ ここ：ステータスを2列×2段の固定グリッドに
+  const statsGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
     gap: "8px",
     fontSize: "13px",
     marginBottom: "12px",
@@ -653,9 +577,10 @@ export default function GameWordFinder({ onBackToHome }) {
     border: "1px solid #fff",
     borderRadius: "10px",
     padding: "6px 10px",
-    lineHeight: 1.2,
+    lineHeight: 1.3,
     boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
     fontWeight: 500,
+    textAlign: "center",
   };
 
   const levelBlockStyle = {
@@ -684,51 +609,17 @@ export default function GameWordFinder({ onBackToHome }) {
     padding: "8px 12px",
     fontSize: "14px",
     cursor: running ? "not-allowed" : "pointer",
+    opacity: running ? 0.6 : 1,
+    fontWeight: 600,
     boxShadow: active
       ? "0 4px 10px rgba(56,189,248,0.4)"
       : "0 2px 4px rgba(0,0,0,0.05)",
-    opacity: running ? 0.6 : 1,
-    fontWeight: 600,
   });
 
-  // サウンド設定（コンパクト）
-  const soundSectionTitleStyle = {
-    marginBottom: "12px",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#1f2937",
-  };
-
-  const soundRowStyle = {
-    display: "grid",
-    gridTemplateColumns: "minmax(80px,auto) 1fr auto",
-    alignItems: "center",
-    rowGap: "8px",
-    columnGap: "12px",
-    fontSize: "13px",
-    color: "#374151",
-    marginBottom: "12px",
-  };
-
-  const soundLabelStyle = {
-    fontWeight: 600,
-    lineHeight: 1.2,
-    color: "#1f2937",
-  };
-
-  const soundValueStyle = {
-    minWidth: "32px",
-    textAlign: "right",
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#111827",
-  };
-
-  // スタート・中止
   const actionRowStyle = {
     display: "flex",
-    flexWrap: "wrap",
     gap: "8px",
+    flexWrap: "wrap",
   };
 
   const mainButtonStyle = {
@@ -738,9 +629,8 @@ export default function GameWordFinder({ onBackToHome }) {
     border: "none",
     borderRadius: "10px",
     padding: "10px 16px",
-    fontSize: "14px",
-    cursor: "pointer",
     fontWeight: "600",
+    cursor: "pointer",
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
 
@@ -750,13 +640,22 @@ export default function GameWordFinder({ onBackToHome }) {
     border: "none",
     borderRadius: "10px",
     padding: "10px 16px",
-    fontSize: "14px",
-    cursor: "pointer",
     fontWeight: "500",
+    cursor: "pointer",
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
 
-  // 盤面（ワードカード）
+  const boardPanelStyle = {
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+    padding: "8px",
+    position: "relative",
+    marginTop: "16px",
+  };
+
   const gridAreaStyle = {
     marginTop: "4px",
     display: "grid",
@@ -764,11 +663,8 @@ export default function GameWordFinder({ onBackToHome }) {
     gap: "8px",
     maxHeight: "70vh",
     overflowY: "auto",
-    position: "relative",
-    borderRadius: "8px",
   };
 
-  // カード
   const wordCardStyle = (alreadyFound) => ({
     position: "relative",
     borderRadius: "10px",
@@ -779,7 +675,7 @@ export default function GameWordFinder({ onBackToHome }) {
     background:
       "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
     minHeight: "60px",
-    aspectRatio: "2 / 1",
+    aspectRatio: "1 / 1",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -794,11 +690,11 @@ export default function GameWordFinder({ onBackToHome }) {
     opacity: alreadyFound ? 0.6 : 1,
   });
 
-  // オーバーレイ（チュートリアル＆結果）
+  // オーバーレイ（チュートリアル＆クリア）
   const overlayStyle = {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
@@ -806,6 +702,7 @@ export default function GameWordFinder({ onBackToHome }) {
     padding: "16px",
     textAlign: "center",
     zIndex: 40,
+    pointerEvents: "none", // ← 背景のボタンも押せる
   };
 
   const overlayInnerStyle = {
@@ -821,6 +718,7 @@ export default function GameWordFinder({ onBackToHome }) {
     fontSize: "14px",
     lineHeight: 1.5,
     fontWeight: 500,
+    pointerEvents: "auto", // 中身は触れる
   };
 
   const overlayButtonStyle = {
@@ -838,114 +736,10 @@ export default function GameWordFinder({ onBackToHome }) {
       "0 8px 20px rgba(0,0,0,0.25),0 0 16px rgba(16,185,129,0.6)",
   };
 
-  // サウンド許可モーダル
-  const audioPromptOverlayStyle = {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    zIndex: 100,
-    display: showAudioPrompt ? "flex" : "none",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "16px",
-    color: "#fff",
-    textAlign: "center",
-  };
-
-  const audioPromptCardStyle = {
-    backgroundColor: "#fff",
-    color: "#1f2937",
-    borderRadius: "16px",
-    padding: "20px",
-    maxWidth: "300px",
-    width: "100%",
-    boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
-    fontSize: "14px",
-    lineHeight: 1.5,
-    fontWeight: 500,
-  };
-
-  const audioPromptBtnYes = {
-    background:
-      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    width: "100%",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-  };
-
-  const audioPromptBtnNo = {
-    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    width: "100%",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-  };
-
   return (
     <div style={appBgStyle}>
-      {/* ---- サウンドの許可 ---- */}
-      <div style={audioPromptOverlayStyle}>
-        <div style={audioPromptCardStyle}>
-          <div
-            style={{
-              fontSize: "16px",
-              fontWeight: "700",
-              color: "#065f46",
-              marginBottom: "8px",
-              textAlign: "center",
-            }}
-          >
-            サウンドの許可
-          </div>
-          <div
-            style={{
-              color: "#1f2937",
-              marginBottom: "16px",
-              textAlign: "center",
-            }}
-          >
-            BGMと効果音を再生してもいいですか？
-            <br />
-            （あとから音量は変えられます）
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              onClick={() => handleAudioConsent(true)}
-              style={audioPromptBtnYes}
-            >
-              はい（音ありで遊ぶ）
-            </button>
-            <button
-              onClick={() => handleAudioConsent(false)}
-              style={audioPromptBtnNo}
-            >
-              いいえ（音なしで遊ぶ）
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div style={outerWrapStyle}>
-        {/* ================= 上側まとめブロック ================= */}
+        {/* ====== 上側UIブロック ====== */}
         <div style={controlPanelStyle}>
           {/* タイトル＋戻る */}
           <div style={headerRowStyle}>
@@ -955,27 +749,24 @@ export default function GameWordFinder({ onBackToHome }) {
             </button>
           </div>
 
-          {/* ステータス */}
-          <div style={statsRowStyle}>
+          {/* ステータス（2列×2段 固定） */}
+          <div style={statsGridStyle}>
             <div style={chipStyle}>
               <strong>タイム:</strong>{" "}
-              {finalScoreMs !== null
+              {finalScoreMs
                 ? msToClock(finalScoreMs)
                 : msToClock(elapsedMs)}
             </div>
-
             <div style={chipStyle}>
-              <strong>見つけたポジティブ:</strong>{" "}
+              <strong>見つけた:</strong>{" "}
               {Object.keys(found).length}/{targets.length || "?"}
             </div>
-
             <div style={chipStyle}>
               <strong>ミス:</strong> {penalties}回 (+{penalties * 3}s)
             </div>
-
             <div style={chipStyle}>
               <strong>ベスト:</strong>{" "}
-              {bestTimes[gridSize] != null
+              {bestTimes[gridSize]
                 ? msToClock(bestTimes[gridSize])
                 : "–"}
             </div>
@@ -984,10 +775,8 @@ export default function GameWordFinder({ onBackToHome }) {
           {/* レベル選択 */}
           <div style={levelBlockStyle}>
             <div style={levelTitleStyle}>
-              レベル（表示ワード数）：
-              <span style={{ marginLeft: "4px", fontWeight: 700 }}>
-                {gridSize}個
-              </span>
+              レベル（表示ワード数）：{" "}
+              <span style={{ fontWeight: 700 }}>{gridSize}個</span>
             </div>
 
             <div style={levelButtonsWrapStyle}>
@@ -1006,58 +795,18 @@ export default function GameWordFinder({ onBackToHome }) {
             </div>
           </div>
 
-          {/* サウンド設定（コンパクト） */}
-          <div style={soundSectionTitleStyle}>サウンド設定</div>
-
-          <div style={soundRowStyle}>
-            <div style={soundLabelStyle}>BGM</div>
-            <input
-              id="bgmRangeWord"
-              type="range"
-              min={0}
-              max={10}
-              value={bgmVolume}
-              onChange={onChangeBgmVolume}
-              style={{
-                width: "100%",
-                height: "24px",
-                cursor: "pointer",
-              }}
-            />
-            <div style={soundValueStyle}>{bgmVolume}/10</div>
-          </div>
-
-          <div style={soundRowStyle}>
-            <div style={soundLabelStyle}>効果音</div>
-            <input
-              id="sfxRangeWord"
-              type="range"
-              min={0}
-              max={10}
-              value={sfxVolume}
-              onChange={onChangeSfxVolume}
-              style={{
-                width: "100%",
-                height: "24px",
-                cursor: "pointer",
-              }}
-            />
-            <div style={soundValueStyle}>{sfxVolume}/10</div>
-          </div>
-
           {/* スタート・中止 */}
           <div style={actionRowStyle}>
             <button onClick={startGame} style={mainButtonStyle}>
               スタート / もう一回
             </button>
-
             <button onClick={stopGame} style={stopButtonStyle}>
               中止
             </button>
           </div>
         </div>
 
-        {/* ================= 盤面ブロック ================= */}
+        {/* ====== ゲーム盤面 ====== */}
         <div style={boardPanelStyle}>
           <div style={gridAreaStyle}>
             {grid.length === 0 ? (
@@ -1074,7 +823,7 @@ export default function GameWordFinder({ onBackToHome }) {
                   boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
                 }}
               >
-                「スタート / もう一回」を押してゲーム開始！
+                「スタート / もう一回」でゲーム開始！
               </div>
             ) : (
               grid.map((item) => {
@@ -1126,9 +875,9 @@ export default function GameWordFinder({ onBackToHome }) {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontWeight: "bold",
                           color: "#ff4d4d",
                           fontSize: "28px",
+                          fontWeight: "bold",
                           textShadow:
                             "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
                         }}
@@ -1142,7 +891,7 @@ export default function GameWordFinder({ onBackToHome }) {
             )}
           </div>
 
-          {/* チュートリアル（「あります。」を必ず次の段に落とす） */}
+          {/* チュートリアルオーバーレイ */}
           {showTutorial && (
             <div
               style={{
@@ -1193,7 +942,7 @@ export default function GameWordFinder({ onBackToHome }) {
             </div>
           )}
 
-          {/* クリア後 */}
+          {/* クリア後オーバーレイ */}
           {gameOver && (
             <div style={overlayStyle}>
               <div style={overlayInnerStyle}>
@@ -1216,7 +965,7 @@ export default function GameWordFinder({ onBackToHome }) {
                 >
                   記録:{" "}
                   <strong style={{ fontSize: "16px" }}>
-                    {finalScoreMs !== null
+                    {finalScoreMs
                       ? msToClock(finalScoreMs)
                       : msToClock(elapsedMs)}
                   </strong>
@@ -1224,7 +973,7 @@ export default function GameWordFinder({ onBackToHome }) {
                   ミス {penalties}回
                   <br />
                   ベスト({gridSize}個):{" "}
-                  {bestTimes[gridSize] != null
+                  {bestTimes[gridSize]
                     ? msToClock(bestTimes[gridSize])
                     : "–"}
                 </div>
@@ -1237,14 +986,13 @@ export default function GameWordFinder({ onBackToHome }) {
                     fontWeight: 500,
                   }}
                 >
-                  「スタート / もう一回」で
-                  くり返しあそべます
+                  「スタート / もう一回」で再挑戦！
                 </div>
               </div>
             </div>
           )}
         </div>
-        {/* ================= /盤面ブロック ================= */}
+        {/* ====== /ゲーム盤面 ====== */}
       </div>
     </div>
   );

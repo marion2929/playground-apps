@@ -216,22 +216,20 @@ export default function HomeScreen({
             style={gameButtonStyleMain}
             onClick={onSelectSmileFinder}
           >
-            Smile Finder（表情を見分ける）
+            Smile Finder
+            <br />
+            （笑顔を見つける）
           </button>
 
           <button
             style={gameButtonStyleAlt}
             onClick={onSelectWordFinder}
           >
-            Positive Word Finder（ことばを見分ける）
+            Positive Word Finder
+            <br />
+            （前向きな言葉を探す）
           </button>
 
-          <button
-            style={gameButtonStyleAlt}
-            onClick={onSelectLinesFinder}
-          >
-            Positive Lines Finder（伝え方を見分ける）
-          </button>
         </div>
       </div>
 

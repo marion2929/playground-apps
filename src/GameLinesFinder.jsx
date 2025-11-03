@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/* ================= ユーティリティ ================= */
-
+/* ============== ユーティリティ ============== */
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -25,14 +24,9 @@ function msToClock(ms) {
   );
 }
 
-/* ================= データセット =================
-   SOFT_LINES = 優しい・安心できるニュアンス（正解）
-   HARD_LINES = つらくなる/責めるニュアンス（不正解）
-   あなたがくれた追加分も含めて統合
-*/
-
+/* ============== データセット ============== */
+// 正解：やさしいニュアンス
 const SOFT_LINES = [
-  // もともと入ってたやさしい側
   "無理しなくていいよ。今のままで十分がんばってるから。",
   "大丈夫、ちゃんと味方いるから心配しなくていいよ。",
   "ゆっくりでいいよ。急がなくて大丈夫。",
@@ -53,8 +47,6 @@ const SOFT_LINES = [
   "心配させてくれてありがとう、ちゃんと話してくれてうれしい。",
   "ちゃんと助けを求められるの、すごい力だからね？",
   "よしよし、がんばったね。ほんとに偉いよ。",
-
-  // 追加してもらったやさしい側
   "ちゃんとここにいるよ、ひとりじゃないからね。",
   "失敗しても大丈夫、ちゃんと前に進んでる証拠だよ。",
   "頑張らなくても、あなたの存在だけで十分だよ。",
@@ -84,11 +76,11 @@ const SOFT_LINES = [
   "そのままのあなたで大丈夫だよ。",
   "ちゃんと優しさが伝わってるよ。",
   "いつも頑張ってる自分を褒めてあげてね。",
-  "今までよく頑張ったね、ほんとにえらいよ。"
+  "今までよく頑張ったね、ほんとにえらいよ。",
 ];
 
+// 不正解：きついニュアンス
 const HARD_LINES = [
-  // もともと入ってたキツい側
   "それくらいで弱音吐くのは甘えなんじゃない？",
   "いやいや、それはさすがにサボりでしょ。",
   "泣いたって状況は変わらないよ？やるしかないんだからさ。",
@@ -109,8 +101,6 @@ const HARD_LINES = [
   "鬱っぽいとか言って逃げたいだけでしょ？",
   "面倒くさいからちゃんとして。",
   "そんなの聞いてる暇ない。自分でやって。",
-
-  // 追加してもらったキツい側
   "努力が足りないだけじゃない？",
   "それで本気って言えるの？",
   "結局やる気がないんでしょ。",
@@ -173,10 +163,10 @@ const HARD_LINES = [
   "こっちの気持ちも考えてよ。",
   "結局、やる気ないだけでしょ。",
   "いつまで逃げるつもり？",
-  "もう少し自分で考えて。"
+  "もう少し自分で考えて。",
 ];
 
-/* プールをまとめる関数 */
+/* プール構築 */
 function buildLinePool() {
   const softObjs = SOFT_LINES.map((line, idx) => ({
     baseId: `good${idx + 1}`,
@@ -191,8 +181,7 @@ function buildLinePool() {
   return [...softObjs, ...hardObjs];
 }
 
-/* ================= ベストタイム（localStorage） ================= */
-
+/* ============== ベストタイム（localStorage） ============== */
 function bestTimeKeyLines(size) {
   return `bestTimeLines_${size}`;
 }
@@ -210,8 +199,7 @@ function saveBestTimeLines(size, ms) {
   localStorage.setItem(bestTimeKeyLines(size), String(ms));
 }
 
-/* ================= 本体コンポーネント ================= */
-
+/* ============== 本体コンポーネント ============== */
 export default function GameLinesFinder({ onBackToHome }) {
   const LEVELS = [10, 20, 30, 40, 50];
 
@@ -237,11 +225,7 @@ export default function GameLinesFinder({ onBackToHome }) {
   const [fadeOutTutorial, setFadeOutTutorial] = useState(false);
   const [targetCount, setTargetCount] = useState(0);
 
-  // サウンド
-  const [showAudioPrompt, setShowAudioPrompt] = useState(true);
-  const [bgmVolume, setBgmVolume] = useState(2); // 初期は2/10で統一
-  const [sfxVolume, setSfxVolume] = useState(2);
-  const bgmRef = useRef(null);
+  // 効果音のみ
   const correctRef = useRef(null);
   const wrongRef = useRef(null);
   const clearRef = useRef(null);
@@ -255,7 +239,7 @@ export default function GameLinesFinder({ onBackToHome }) {
     return init;
   });
 
-  // 計算系
+  // 計算
   const allFound = useMemo(() => {
     if (!targets.length) return false;
     return targets.every((id) => found[id]);
@@ -281,30 +265,6 @@ export default function GameLinesFinder({ onBackToHome }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [running]);
-
-  // BGMセットアップ/クリーンアップ
-  useEffect(() => {
-    bgmRef.current = new Audio("/BGM.mp3");
-    if (bgmRef.current) {
-      bgmRef.current.loop = true;
-      bgmRef.current.volume = bgmVolume / 10;
-    }
-    return () => {
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-        bgmRef.current.currentTime = 0;
-        bgmRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // BGM音量反映
-  useEffect(() => {
-    if (bgmRef.current) {
-      bgmRef.current.volume = bgmVolume / 10;
-    }
-  }, [bgmVolume]);
 
   // ゲーム開始
   function startGame() {
@@ -390,8 +350,7 @@ export default function GameLinesFinder({ onBackToHome }) {
     if (isTarget) {
       if (correctRef.current) {
         correctRef.current.currentTime = 0;
-        correctRef.current.volume = sfxVolume / 10;
-        correctRef.current.play();
+        correctRef.current.play().catch(() => {});
       }
       setFound((prev) => {
         if (prev[item.uid]) return prev;
@@ -400,12 +359,9 @@ export default function GameLinesFinder({ onBackToHome }) {
     } else {
       if (wrongRef.current) {
         wrongRef.current.currentTime = 0;
-        wrongRef.current.volume = sfxVolume / 10;
-        wrongRef.current.play();
+        wrongRef.current.play().catch(() => {});
       }
-
       setPenalties((p) => p + 1);
-
       setWrongFlash((prev) => ({ ...prev, [item.uid]: true }));
       setTimeout(() => {
         setWrongFlash((prev) => {
@@ -425,8 +381,7 @@ export default function GameLinesFinder({ onBackToHome }) {
 
       if (clearRef.current) {
         clearRef.current.currentTime = 0;
-        clearRef.current.volume = sfxVolume / 10;
-        clearRef.current.play();
+        clearRef.current.play().catch(() => {});
       }
 
       const thisRun = Date.now() - startTime + penalties * 3000;
@@ -440,51 +395,9 @@ export default function GameLinesFinder({ onBackToHome }) {
         }));
       }
     }
-  }, [
-    allFound,
-    running,
-    gameOver,
-    startTime,
-    penalties,
-    gridSize,
-    bestTimes,
-    sfxVolume,
-  ]);
+  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes]);
 
-  // サウンド許可
-  function handleAudioConsent(allow) {
-    if (allow) {
-      if (bgmRef.current) {
-        bgmRef.current.volume = bgmVolume / 10;
-        bgmRef.current.loop = true;
-        bgmRef.current.play();
-      }
-    } else {
-      setBgmVolume(0);
-      setSfxVolume(0);
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-        bgmRef.current.currentTime = 0;
-      }
-    }
-    setShowAudioPrompt(false);
-  }
-
-  function onChangeBgmVolume(e) {
-    const v = Number(e.target.value);
-    setBgmVolume(v);
-    if (bgmRef.current) {
-      bgmRef.current.volume = v / 10;
-    }
-  }
-
-  function onChangeSfxVolume(e) {
-    const v = Number(e.target.value);
-    setSfxVolume(v);
-  }
-
-  /* ================= スタイル ================= */
-
+  /* ============== スタイル ============== */
   const appBgStyle = {
     minHeight: "100vh",
     background:
@@ -499,7 +412,6 @@ export default function GameLinesFinder({ onBackToHome }) {
     padding: "16px",
   };
 
-  // 上のまとめブロック
   const controlPanelStyle = {
     backgroundColor: "rgba(255,255,255,0.8)",
     backdropFilter: "blur(4px)",
@@ -509,7 +421,6 @@ export default function GameLinesFinder({ onBackToHome }) {
     padding: "16px",
   };
 
-  // 下の盤面
   const boardPanelStyle = {
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
@@ -551,9 +462,10 @@ export default function GameLinesFinder({ onBackToHome }) {
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
 
-  const statsRowStyle = {
-    display: "flex",
-    flexWrap: "wrap",
+  // ★ ステータス 2列×2段（タイム表示のブレ防止）
+  const statsGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
     gap: "8px",
     fontSize: "13px",
     marginBottom: "12px",
@@ -564,9 +476,10 @@ export default function GameLinesFinder({ onBackToHome }) {
     border: "1px solid #fff",
     borderRadius: "10px",
     padding: "6px 10px",
-    lineHeight: 1.2,
+    lineHeight: 1.3,
     boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
     fontWeight: 500,
+    textAlign: "center",
   };
 
   const levelBlockStyle = {
@@ -595,81 +508,18 @@ export default function GameLinesFinder({ onBackToHome }) {
     padding: "8px 12px",
     fontSize: "14px",
     cursor: running ? "not-allowed" : "pointer",
+    opacity: running ? 0.6 : 1,
+    fontWeight: 600,
     boxShadow: active
       ? "0 4px 10px rgba(56,189,248,0.4)"
       : "0 2px 4px rgba(0,0,0,0.05)",
-    opacity: running ? 0.6 : 1,
-    fontWeight: 600,
   });
 
-  const soundSectionTitleStyle = {
-    marginBottom: "12px",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#1f2937",
-  };
-
-  const soundRowStyle = {
-    display: "grid",
-    gridTemplateColumns: "minmax(80px,auto) 1fr auto",
-    alignItems: "center",
-    rowGap: "8px",
-    columnGap: "12px",
-    fontSize: "13px",
-    color: "#374151",
-    marginBottom: "12px",
-  };
-
-  const soundLabelStyle = {
-    fontWeight: 600,
-    lineHeight: 1.2,
-    color: "#1f2937",
-  };
-
-  const soundValueStyle = {
-    minWidth: "32px",
-    textAlign: "right",
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#111827",
-  };
-
-  const actionRowStyle = {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
-  };
-
-  const mainButtonStyle = {
-    background:
-      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 16px",
-    fontSize: "14px",
-    cursor: "pointer",
-    fontWeight: "600",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-  };
-
-  const stopButtonStyle = {
-    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 16px",
-    fontSize: "14px",
-    cursor: "pointer",
-    fontWeight: "500",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-  };
-
-  // 盤面
+  // 盤面（セリフは長いので2列）
   const gridAreaStyle = {
     marginTop: "4px",
     display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)", // セリフ長いので2列
+    gridTemplateColumns: "repeat(2, 1fr)",
     gap: "8px",
     maxHeight: "70vh",
     overflowY: "auto",
@@ -701,12 +551,12 @@ export default function GameLinesFinder({ onBackToHome }) {
     opacity: alreadyFound ? 0.6 : 1,
   });
 
-  // オーバーレイ（チュートリアル・クリア）
-  // ※ここ重要：開始前は透けないように真っ黒 rgba(0,0,0,1.0)
-  const overlayBaseStyle = {
+  // オーバーレイ（チュートリアル＆クリア）
+  // 背景をブロックしないため pointerEvents: "none"
+  const overlayStyle = {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(0,0,0,1.0)", // 完全に隠す
+    backgroundColor: "rgba(0,0,0,0.6)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
@@ -714,20 +564,7 @@ export default function GameLinesFinder({ onBackToHome }) {
     padding: "16px",
     textAlign: "center",
     zIndex: 40,
-  };
-
-  // クリア後は半透明のままでOKにする別スタイル
-  const overlayClearStyle = {
-    position: "absolute",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "16px",
-    textAlign: "center",
-    zIndex: 40,
+    pointerEvents: "none",
   };
 
   const overlayInnerStyle = {
@@ -743,6 +580,7 @@ export default function GameLinesFinder({ onBackToHome }) {
     fontSize: "14px",
     lineHeight: 1.5,
     fontWeight: 500,
+    pointerEvents: "auto", // 中身はクリック可
   };
 
   const overlayButtonStyle = {
@@ -760,114 +598,9 @@ export default function GameLinesFinder({ onBackToHome }) {
       "0 8px 20px rgba(0,0,0,0.25),0 0 16px rgba(16,185,129,0.6)",
   };
 
-  // サウンド許可モーダル
-  const audioPromptOverlayStyle = {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    zIndex: 100,
-    display: showAudioPrompt ? "flex" : "none",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "16px",
-    color: "#fff",
-    textAlign: "center",
-  };
-
-  const audioPromptCardStyle = {
-    backgroundColor: "#fff",
-    color: "#1f2937",
-    borderRadius: "16px",
-    padding: "20px",
-    maxWidth: "300px",
-    width: "100%",
-    boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
-    fontSize: "14px",
-    lineHeight: 1.5,
-    fontWeight: 500,
-  };
-
-  const audioPromptBtnYes = {
-    background:
-      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    width: "100%",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-  };
-
-  const audioPromptBtnNo = {
-    background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    width: "100%",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-  };
-
-  /* ================= JSX ================= */
-
+  /* ============== JSX ============== */
   return (
     <div style={appBgStyle}>
-      {/* サウンド許可 */}
-      <div style={audioPromptOverlayStyle}>
-        <div style={audioPromptCardStyle}>
-          <div
-            style={{
-              fontSize: "16px",
-              fontWeight: "700",
-              color: "#065f46",
-              marginBottom: "8px",
-              textAlign: "center",
-            }}
-          >
-            サウンドの許可
-          </div>
-          <div
-            style={{
-              color: "#1f2937",
-              marginBottom: "16px",
-              textAlign: "center",
-            }}
-          >
-            BGMと効果音を再生してもいいですか？
-            <br />
-            （あとから音量は変えられます）
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              onClick={() => handleAudioConsent(true)}
-              style={audioPromptBtnYes}
-            >
-              はい（音ありで遊ぶ）
-            </button>
-            <button
-              onClick={() => handleAudioConsent(false)}
-              style={audioPromptBtnNo}
-            >
-              いいえ（音なしで遊ぶ）
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div style={outerWrapStyle}>
         {/* ===== 上側まとめブロック ===== */}
         <div style={controlPanelStyle}>
@@ -879,41 +612,30 @@ export default function GameLinesFinder({ onBackToHome }) {
             </button>
           </div>
 
-          {/* ステータス */}
-          <div style={statsRowStyle}>
+          {/* ステータス（2列×2段 固定） */}
+          <div style={statsGridStyle}>
             <div style={chipStyle}>
               <strong>タイム:</strong>{" "}
-              {finalScoreMs !== null
-                ? msToClock(finalScoreMs)
-                : msToClock(elapsedMs)}
+              {finalScoreMs ? msToClock(finalScoreMs) : msToClock(elapsedMs)}
             </div>
-
             <div style={chipStyle}>
-              <strong>見つけたやさしい台詞:</strong>{" "}
+              <strong>見つけた:</strong>{" "}
               {Object.keys(found).length}/{targets.length || "?"}
             </div>
-
             <div style={chipStyle}>
               <strong>ミス:</strong> {penalties}回 (+{penalties * 3}s)
             </div>
-
             <div style={chipStyle}>
               <strong>ベスト:</strong>{" "}
-              {bestTimes[gridSize] != null
-                ? msToClock(bestTimes[gridSize])
-                : "–"}
+              {bestTimes[gridSize] ? msToClock(bestTimes[gridSize]) : "–"}
             </div>
           </div>
 
-          {/* レベル */}
+          {/* レベル選択 */}
           <div style={levelBlockStyle}>
             <div style={levelTitleStyle}>
-              レベル（表示セリフ数）：
-              <span style={{ marginLeft: "4px", fontWeight: 700 }}>
-                {gridSize}本
-              </span>
+              レベル（表示セリフ数）： <span style={{ fontWeight: 700 }}>{gridSize}本</span>
             </div>
-
             <div style={levelButtonsWrapStyle}>
               {LEVELS.map((num) => (
                 <button
@@ -930,58 +652,36 @@ export default function GameLinesFinder({ onBackToHome }) {
             </div>
           </div>
 
-          {/* サウンド設定（コンパクト） */}
-          <div style={soundSectionTitleStyle}>サウンド設定</div>
-
-          <div style={soundRowStyle}>
-            <div style={soundLabelStyle}>BGM</div>
-            <input
-              id="bgmRangeLines"
-              type="range"
-              min={0}
-              max={10}
-              value={bgmVolume}
-              onChange={onChangeBgmVolume}
-              style={{
-                width: "100%",
-                height: "24px",
-                cursor: "pointer",
-              }}
-            />
-            <div style={soundValueStyle}>{bgmVolume}/10</div>
-          </div>
-
-          <div style={soundRowStyle}>
-            <div style={soundLabelStyle}>効果音</div>
-            <input
-              id="sfxRangeLines"
-              type="range"
-              min={0}
-              max={10}
-              value={sfxVolume}
-              onChange={onChangeSfxVolume}
-              style={{
-                width: "100%",
-                height: "24px",
-                cursor: "pointer",
-              }}
-            />
-            <div style={soundValueStyle}>{sfxVolume}/10</div>
-          </div>
-
-          {/* スタート/中止 */}
-          <div style={actionRowStyle}>
-            <button onClick={startGame} style={mainButtonStyle}>
+          {/* スタート・中止 */}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button onClick={startGame} style={{
+              background: "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "10px",
+              padding: "10px 16px",
+              fontWeight: "600",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            }}>
               スタート / もう一回
             </button>
-
-            <button onClick={stopGame} style={stopButtonStyle}>
+            <button onClick={stopGame} style={{
+              background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "10px",
+              padding: "10px 16px",
+              fontWeight: "500",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            }}>
               中止
             </button>
           </div>
         </div>
 
-        {/* ===== 下側：盤面ブロック ===== */}
+        {/* ===== 盤面 ===== */}
         <div style={boardPanelStyle}>
           <div style={gridAreaStyle}>
             {grid.length === 0 ? (
@@ -1004,7 +704,6 @@ export default function GameLinesFinder({ onBackToHome }) {
               grid.map((item) => {
                 const alreadyFound = !!found[item.uid];
                 const wasWrong = !!wrongFlash[item.uid];
-
                 return (
                   <button
                     key={item.uid}
@@ -1025,7 +724,7 @@ export default function GameLinesFinder({ onBackToHome }) {
                       {item.text}
                     </div>
 
-                    {/* 正解済み表示 */}
+                    {/* FOUND */}
                     {alreadyFound && (
                       <div
                         style={{
@@ -1045,7 +744,7 @@ export default function GameLinesFinder({ onBackToHome }) {
                       </div>
                     )}
 
-                    {/* ミス時の✖フラッシュ */}
+                    {/* MISS */}
                     {wasWrong && (
                       <div
                         style={{
@@ -1071,11 +770,11 @@ export default function GameLinesFinder({ onBackToHome }) {
             )}
           </div>
 
-          {/* === チュートリアル（開始前の説明） === */}
+          {/* チュートリアル */}
           {showTutorial && (
             <div
               style={{
-                ...overlayBaseStyle,
+                ...overlayStyle,
                 opacity: fadeOutTutorial ? 0 : 1,
                 transition: "opacity 0.3s ease",
                 pointerEvents: fadeOutTutorial ? "none" : "auto",
@@ -1093,12 +792,7 @@ export default function GameLinesFinder({ onBackToHome }) {
                   ルール説明
                 </div>
 
-                <div
-                  style={{
-                    marginBottom: "12px",
-                    color: "#064e3b",
-                  }}
-                >
+                <div style={{ marginBottom: "12px", color: "#064e3b" }}>
                   この中に
                   <br />
                   <strong style={{ fontSize: "16px" }}>
@@ -1112,19 +806,16 @@ export default function GameLinesFinder({ onBackToHome }) {
                   間違えると+3秒ペナルティ！
                 </div>
 
-                <button
-                  onClick={beginAfterTutorial}
-                  style={overlayButtonStyle}
-                >
+                <button onClick={beginAfterTutorial} style={overlayButtonStyle}>
                   OK！スタート！
                 </button>
               </div>
             </div>
           )}
 
-          {/* === クリア後のオーバーレイ === */}
+          {/* クリア後 */}
           {gameOver && (
-            <div style={overlayClearStyle}>
+            <div style={overlayStyle}>
               <div style={overlayInnerStyle}>
                 <div
                   style={{
@@ -1137,25 +828,16 @@ export default function GameLinesFinder({ onBackToHome }) {
                   クリアおめでとう！ 🎉
                 </div>
 
-                <div
-                  style={{
-                    marginBottom: "12px",
-                    color: "#064e3b",
-                  }}
-                >
+                <div style={{ marginBottom: "12px", color: "#064e3b" }}>
                   記録:{" "}
                   <strong style={{ fontSize: "16px" }}>
-                    {finalScoreMs !== null
-                      ? msToClock(finalScoreMs)
-                      : msToClock(elapsedMs)}
+                    {finalScoreMs ? msToClock(finalScoreMs) : msToClock(elapsedMs)}
                   </strong>
                   <br />
                   ミス {penalties}回
                   <br />
                   ベスト({gridSize}本):{" "}
-                  {bestTimes[gridSize] != null
-                    ? msToClock(bestTimes[gridSize])
-                    : "–"}
+                  {bestTimes[gridSize] ? msToClock(bestTimes[gridSize]) : "–"}
                 </div>
 
                 <div
@@ -1166,14 +848,13 @@ export default function GameLinesFinder({ onBackToHome }) {
                     fontWeight: 500,
                   }}
                 >
-                  「スタート / もう一回」で
-                  くり返しあそべます
+                  「スタート / もう一回」で再挑戦！
                 </div>
               </div>
             </div>
           )}
         </div>
-        {/* ===== /盤面ブロック ===== */}
+        {/* ===== /盤面 ===== */}
       </div>
     </div>
   );
