@@ -1,5 +1,75 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// ===== SFX（Web Audio API）共通ユーティリティ =====
+const SFX_FILES = {
+  correct: "/correct.mp3",
+  wrong: "/wrong.mp3",
+  clear: "/clear.mp3",
+};
+
+// ベース音量を常に 25% に固定（本体の音量ボタンはこの後段に掛かる）
+const BASE_SFX_GAIN = 0.25;
+
+function useSfx() {
+  const audioCtxRef = useRef(null);
+  const gainRef = useRef(null);
+  const buffersRef = useRef({}); // { correct: AudioBuffer, ... }
+  const readyRef = useRef(false);
+
+  async function ensureContext() {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      try { await audioCtxRef.current.resume(); } catch (_) {}
+    }
+    if (!gainRef.current) {
+      const g = audioCtxRef.current.createGain();
+      g.gain.value = BASE_SFX_GAIN; // ここで常に 1/4
+      g.connect(audioCtxRef.current.destination);
+      gainRef.current = g;
+    }
+  }
+
+  async function loadBuffers() {
+    if (readyRef.current) return;
+    const ctx = audioCtxRef.current;
+    const entries = Object.entries(SFX_FILES);
+
+    const loaded = {};
+    await Promise.all(entries.map(async ([key, url]) => {
+      const res = await fetch(url);
+      const arr = await res.arrayBuffer();
+      loaded[key] = await ctx.decodeAudioData(arr);
+    }));
+
+    buffersRef.current = loaded;
+    readyRef.current = true;
+  }
+
+  // ユーザー操作のときに呼ぶ（初期化＋プリロード）
+  async function initSfx() {
+    await ensureContext();
+    await loadBuffers();
+  }
+
+  // 再生
+  function playSfx(name) {
+    const ctx = audioCtxRef.current;
+    const g = gainRef.current;
+    const buf = buffersRef.current[name];
+    if (!ctx || !g || !buf) return;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(g);
+    try { src.start(0); } catch (_) {}
+  }
+
+  return { initSfx, playSfx };
+}
+
+
 // =============== ユーティリティ ===============
 function shuffle(arr) {
   const a = arr.slice();
@@ -75,6 +145,7 @@ function saveBestTimeSmile(size, ms) {
 
 // =============== コンポーネント本体 ===============
 export default function GameSmileFinder({ onBackToHome }) {
+  const { initSfx, playSfx } = useSfx();  // ← これを追加
   const LEVELS = [10, 20, 30, 40, 50];
 
   // ---- ゲーム状態 ----
@@ -134,6 +205,10 @@ export default function GameSmileFinder({ onBackToHome }) {
 
   // ---- ゲーム開始 ----
   function startGame() {
+    initSfx(); // ← 追加（await不要）
+    // ...今の startGame の中身はそのまま
+  }
+
     const smileRatio = 0.3;
     const smilesNeeded = Math.max(1, Math.round(gridSize * smileRatio));
 
