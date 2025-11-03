@@ -17,14 +17,17 @@ function useSfx() {
 
   async function ensureContext() {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current =
+        new (window.AudioContext || window.webkitAudioContext)();
     }
     if (audioCtxRef.current.state === "suspended") {
-      try { await audioCtxRef.current.resume(); } catch (_) {}
+      try {
+        await audioCtxRef.current.resume();
+      } catch (_) {}
     }
     if (!gainRef.current) {
       const g = audioCtxRef.current.createGain();
-      g.gain.value = BASE_SFX_GAIN;
+      g.gain.value = BASE_SFX_GAIN; // ← 1/4固定
       g.connect(audioCtxRef.current.destination);
       gainRef.current = g;
     }
@@ -35,11 +38,13 @@ function useSfx() {
     const ctx = audioCtxRef.current;
     const entries = Object.entries(SFX_FILES);
     const loaded = {};
-    await Promise.all(entries.map(async ([key, url]) => {
-      const res = await fetch(url);
-      const arr = await res.arrayBuffer();
-      loaded[key] = await ctx.decodeAudioData(arr);
-    }));
+    await Promise.all(
+      entries.map(async ([key, url]) => {
+        const res = await fetch(url);
+        const arr = await res.arrayBuffer();
+        loaded[key] = await ctx.decodeAudioData(arr);
+      })
+    );
     buffersRef.current = loaded;
     readyRef.current = true;
   }
@@ -59,7 +64,9 @@ function useSfx() {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(g);
-    try { src.start(0); } catch (_) {}
+    try {
+      src.start(0);
+    } catch (_) {}
   }
 
   return { initSfx, playSfx };
@@ -136,9 +143,14 @@ function buildWordPool() {
 }
 
 /* ================= ベストタイム（localStorage） ================= */
-function bestTimeKeyWord(size) { return `bestTimeWord_${size}`; }
+function bestTimeKeyWord(size) {
+  return `bestTimeWord_${size}`;
+}
 function loadBestTimeWord(size) {
-  const raw = typeof window !== "undefined" ? localStorage.getItem(bestTimeKeyWord(size)) : null;
+  const raw =
+    typeof window !== "undefined"
+      ? localStorage.getItem(bestTimeKeyWord(size))
+      : null;
   if (!raw) return null;
   const num = Number(raw);
   if (Number.isNaN(num)) return null;
@@ -155,7 +167,7 @@ export default function GameWordFinder({ onBackToHome }) {
   const LEVELS = [10, 20, 30, 40, 50];
   const [gridSize, setGridSize] = useState(10);
   const [grid, setGrid] = useState([]);
-  const [targets, setTargets] = useState([]);     // 正解uid
+  const [targets, setTargets] = useState([]); // 正解uid
   const [found, setFound] = useState({});
   const [penalties, setPenalties] = useState(0);
   const [wrongFlash, setWrongFlash] = useState({});
@@ -164,18 +176,14 @@ export default function GameWordFinder({ onBackToHome }) {
   const [gameOver, setGameOver] = useState(false);
 
   const [startTime, setStartTime] = useState(null);
-  const [pendingStartTime, setPendingStartTime] = useState(null);
   const [now, setNow] = useState(Date.now());
-
-  // チュートリアル
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [fadeOutTutorial, setFadeOutTutorial] = useState(false);
-  const [targetCount, setTargetCount] = useState(0);
 
   // ベストタイム
   const [bestTimes, setBestTimes] = useState(() => {
     const init = {};
-    LEVELS.forEach((lvl) => { init[lvl] = loadBestTimeWord(lvl); });
+    LEVELS.forEach((lvl) => {
+      init[lvl] = loadBestTimeWord(lvl);
+    });
     return init;
   });
 
@@ -203,17 +211,19 @@ export default function GameWordFinder({ onBackToHome }) {
       rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [running]);
 
-  // ゲーム開始
+  // ゲーム開始（即カウント開始／チュートリアルなし）
   function startGame() {
-    // 初回ユーザー操作でSFX初期化＆プリロード
-    initSfx();
+    initSfx(); // SFX初期化＆プリロード（ユーザー操作起点）
 
     const positiveRatio = 0.3; // 30%が正解
     const needPositives = Math.max(1, Math.round(gridSize * positiveRatio));
 
+    // カード生成
     const POOL = shuffle(buildWordPool());
     const posPool = POOL.filter((p) => p.isPositive);
     const negPool = POOL.filter((p) => !p.isPositive);
@@ -242,27 +252,9 @@ export default function GameWordFinder({ onBackToHome }) {
     setGameOver(false);
 
     const t = Date.now();
-    setPendingStartTime(t);
-    setStartTime(null);
+    setStartTime(t);
     setNow(t);
-    setRunning(false);
-
-    setTargetCount(posItems.length);
-    setShowTutorial(true);
-    setFadeOutTutorial(false);
-  }
-
-  // チュートリアルOK → 本計測開始
-  function beginAfterTutorial() {
-    if (pendingStartTime) {
-      setStartTime(pendingStartTime);
-      setRunning(true);
-    }
-    setFadeOutTutorial(true);
-    setTimeout(() => {
-      setShowTutorial(false);
-      setFadeOutTutorial(false);
-    }, 300);
+    setRunning(true);
   }
 
   // 中止
@@ -275,9 +267,6 @@ export default function GameWordFinder({ onBackToHome }) {
     setWrongFlash({});
     setPenalties(0);
     setStartTime(null);
-    setPendingStartTime(null);
-    setShowTutorial(false);
-    setFadeOutTutorial(false);
   }
 
   // タップ
@@ -326,7 +315,8 @@ export default function GameWordFinder({ onBackToHome }) {
   /* ================= スタイル ================= */
   const appBgStyle = {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #fffbe6 0%, #e0f7ff 60%, #e8f9f1 100%)",
+    background:
+      "linear-gradient(135deg, #fffbe6 0%, #e0f7ff 60%, #e8f9f1 100%)",
     backgroundAttachment: "fixed",
     fontFamily: "system-ui, sans-serif",
   };
@@ -340,87 +330,157 @@ export default function GameWordFinder({ onBackToHome }) {
     padding: "16px",
   };
   const headerRowStyle = {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    marginBottom: "12px", flexWrap: "wrap", gap: "8px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px",
+    flexWrap: "wrap",
+    gap: "8px",
   };
   const headerTextStyle = {
-    background: "linear-gradient(90deg, #0ea5e9 0%, #38bdf8 30%, #34d399 60%, #fde047 100%)",
-    WebkitBackgroundClip: "text", color: "transparent", fontWeight: "700", fontSize: "20px",
+    background:
+      "linear-gradient(90deg, #0ea5e9 0%, #38bdf8 30%, #34d399 60%, #fde047 100%)",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    fontWeight: "700",
+    fontSize: "20px",
   };
   const backBtnStyle = {
     background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
-    color: "#fff", border: "none", borderRadius: "10px", padding: "8px 12px",
-    fontSize: "14px", cursor: "pointer", fontWeight: "500",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "8px 12px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "500",
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
   const statsGridStyle = {
-    display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px",
-    fontSize: "13px", marginBottom: "12px",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+    fontSize: "13px",
+    marginBottom: "12px",
   };
   const chipStyle = {
-    backgroundColor: "#ffffffcc", border: "1px solid #fff", borderRadius: "10px",
-    padding: "6px 10px", lineHeight: 1.3, boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-    fontWeight: 500, textAlign: "center",
+    backgroundColor: "#ffffffcc",
+    border: "1px solid #fff",
+    borderRadius: "10px",
+    padding: "6px 10px",
+    lineHeight: 1.3,
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    fontWeight: 500,
+    textAlign: "center",
   };
   const levelBlockStyle = { marginBottom: "12px" };
-  const levelTitleStyle = { fontSize: "14px", marginBottom: "8px", color: "#1f2937", fontWeight: 600 };
+  const levelTitleStyle = {
+    fontSize: "14px",
+    marginBottom: "8px",
+    color: "#1f2937",
+    fontWeight: 600,
+  };
   const levelButtonsWrapStyle = { display: "flex", flexWrap: "wrap", gap: "8px" };
   const levelButtonBase = (active) => ({
     border: active ? "2px solid #38bdf8" : "1px solid #ccc",
     background: active ? "linear-gradient(90deg,#bae6fd,#d9f99d)" : "#fff",
-    borderRadius: "8px", padding: "8px 12px", fontSize: "14px",
-    cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.6 : 1,
-    fontWeight: 600, boxShadow: active ? "0 4px 10px rgba(56,189,248,0.4)" : "0 2px 4px rgba(0,0,0,0.05)",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontSize: "14px",
+    cursor: running ? "not-allowed" : "pointer",
+    opacity: running ? 0.6 : 1,
+    fontWeight: 600,
+    boxShadow: active ? "0 4px 10px rgba(56,189,248,0.4)" : "0 2px 4px rgba(0,0,0,0.05)",
   });
   const actionRowStyle = { display: "flex", gap: "8px", flexWrap: "wrap" };
   const mainButtonStyle = {
     background: "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
-    color: "#fff", border: "none", borderRadius: "10px", padding: "10px 16px",
-    fontWeight: "600", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
   const stopButtonStyle = {
     background: "linear-gradient(90deg,#6b7280 0%,#9ca3af 100%)",
-    color: "#fff", border: "none", borderRadius: "10px", padding: "10px 16px",
-    fontWeight: "500", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontWeight: "500",
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   };
   const boardPanelStyle = {
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
-    borderRadius: "16px", border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.05)", padding: "8px", position: "relative", marginTop: "16px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+    padding: "8px",
+    position: "relative",
+    marginTop: "16px",
   };
   const gridAreaStyle = {
-    marginTop: "4px", display: "grid", gridTemplateColumns: "repeat(5, 1fr)",
-    gap: "8px", maxHeight: "70vh", overflowY: "auto",
+    marginTop: "4px",
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "8px",
+    maxHeight: "70vh",
+    overflowY: "auto",
   };
   const wordCardStyle = (alreadyFound) => ({
-    position: "relative", borderRadius: "10px", border: "1px solid #fcd34d",
-    padding: "8px", cursor: "pointer", overflow: "hidden",
-    background: "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
-    minHeight: "60px", aspectRatio: "1 / 1", display: "flex",
-    alignItems: "center", justifyContent: "center",
-    boxShadow: "0 4px 8px rgba(253,186,116,0.3), 0 0 12px rgba(255,161,64,0.2)",
-    textAlign: "center", fontSize: "14px", fontWeight: "600", lineHeight: 1.4,
+    position: "relative",
+    borderRadius: "10px",
+    border: "1px solid #fcd34d",
+    padding: "8px",
+    cursor: "pointer",
+    overflow: "hidden",
+    background:
+      "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
+    minHeight: "60px",
+    aspectRatio: "1 / 1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow:
+      "0 4px 8px rgba(253,186,116,0.3), 0 0 12px rgba(255,161,64,0.2)",
+    textAlign: "center",
+    fontSize: "14px",
+    fontWeight: "600",
+    lineHeight: 1.4,
     color: alreadyFound ? "#6b7280" : "#78350f",
     filter: alreadyFound ? "grayscale(100%) blur(1px)" : "none",
     opacity: alreadyFound ? 0.6 : 1,
   });
   const overlayStyle = {
-    position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", color: "#fff",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "16px", textAlign: "center", zIndex: 40, pointerEvents: "none",
+    position: "absolute",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    textAlign: "center",
+    zIndex: 40,
+    pointerEvents: "none",
   };
   const overlayInnerStyle = {
-    backgroundColor: "rgba(255,255,255,0.95)", color: "#1f2937",
-    borderRadius: "16px", padding: "20px", maxWidth: "260px", width: "100%",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    color: "#1f2937",
+    borderRadius: "16px",
+    padding: "20px",
+    maxWidth: "260px",
+    width: "100%",
     boxShadow: "0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16,185,129,0.55)",
-    border: "2px solid #6ee7b7", fontSize: "14px", lineHeight: 1.5, fontWeight: 500,
+    border: "2px solid #6ee7b7",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    fontWeight: 500,
     pointerEvents: "auto",
-  };
-  const overlayButtonStyle = {
-    background: "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
-    color: "#fff", border: "none", width: "100%", borderRadius: "10px",
-    padding: "10px 12px", fontSize: "14px", fontWeight: "600", cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.25),0 0 16px rgba(16,185,129,0.6)",
   };
 
   return (
@@ -431,7 +491,9 @@ export default function GameWordFinder({ onBackToHome }) {
           {/* タイトル＋戻る */}
           <div style={headerRowStyle}>
             <div style={headerTextStyle}>Positive Word Finder</div>
-            <button onClick={onBackToHome} style={backBtnStyle}>← ホームへ</button>
+            <button onClick={onBackToHome} style={backBtnStyle}>
+              ← ホームへ
+            </button>
           </div>
 
           {/* ステータス（2列×2段 固定） */}
@@ -456,13 +518,16 @@ export default function GameWordFinder({ onBackToHome }) {
           {/* レベル選択 */}
           <div style={levelBlockStyle}>
             <div style={levelTitleStyle}>
-              レベル（表示ワード数）： <span style={{ fontWeight: 700 }}>{gridSize}個</span>
+              レベル（表示ワード数）：{" "}
+              <span style={{ fontWeight: 700 }}>{gridSize}個</span>
             </div>
             <div style={levelButtonsWrapStyle}>
               {LEVELS.map((num) => (
                 <button
                   key={num}
-                  onClick={() => { if (!running) setGridSize(num); }}
+                  onClick={() => {
+                    if (!running) setGridSize(num);
+                  }}
                   style={levelButtonBase(gridSize === num)}
                   disabled={running}
                 >
@@ -474,8 +539,12 @@ export default function GameWordFinder({ onBackToHome }) {
 
           {/* スタート・中止 */}
           <div style={actionRowStyle}>
-            <button onClick={startGame} style={mainButtonStyle}>スタート / もう一回</button>
-            <button onClick={stopGame} style={stopButtonStyle}>中止</button>
+            <button onClick={startGame} style={mainButtonStyle}>
+              スタート / もう一回
+            </button>
+            <button onClick={stopGame} style={stopButtonStyle}>
+              中止
+            </button>
           </div>
         </div>
 
@@ -515,10 +584,16 @@ export default function GameWordFinder({ onBackToHome }) {
                     {alreadyFound && (
                       <div
                         style={{
-                          position: "absolute", inset: 0,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff", fontWeight: "bold", fontSize: "12px",
-                          backgroundColor: "rgba(0,0,0,0.4)", textShadow: "0 0 4px #000",
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                          backgroundColor: "rgba(0,0,0,0.4)",
+                          textShadow: "0 0 4px #000",
                         }}
                       >
                         FOUND
@@ -528,10 +603,17 @@ export default function GameWordFinder({ onBackToHome }) {
                     {wasWrong && (
                       <div
                         style={{
-                          position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#ff4d4d", fontSize: "28px", fontWeight: "bold",
-                          textShadow: "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
+                          position: "absolute",
+                          inset: 0,
+                          backgroundColor: "rgba(0,0,0,0.4)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ff4d4d",
+                          fontSize: "28px",
+                          fontWeight: "bold",
+                          textShadow:
+                            "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
                         }}
                       >
                         ✖
@@ -543,47 +625,26 @@ export default function GameWordFinder({ onBackToHome }) {
             )}
           </div>
 
-          {/* チュートリアル */}
-          {showTutorial && (
-            <div
-              style={{
-                ...overlayStyle,
-                opacity: fadeOutTutorial ? 0 : 1,
-                transition: "opacity 0.3s ease",
-                pointerEvents: fadeOutTutorial ? "none" : "auto",
-              }}
-            >
-              <div style={overlayInnerStyle}>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#065f46", marginBottom: "8px" }}>
-                  ルール説明
-                </div>
-                <div style={{ marginBottom: "12px", color: "#064e3b" }}>
-                  この中に<br />
-                  <strong style={{ fontSize: "16px" }}>
-                    やさしい・安心できる言葉が {targetCount} 個
-                  </strong><br />
-                  あります。<br />
-                  その言葉だけタップしてね！<br />
-                  間違えると+3秒ペナルティ！
-                </div>
-                <button onClick={beginAfterTutorial} style={overlayButtonStyle}>
-                  OK！スタート！
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* クリア後 */}
           {gameOver && (
             <div style={overlayStyle}>
               <div style={overlayInnerStyle}>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#065f46", marginBottom: "8px" }}>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#065f46",
+                    marginBottom: "8px",
+                  }}
+                >
                   クリアおめでとう！ 🎉
                 </div>
                 <div style={{ marginBottom: "12px", color: "#064e3b" }}>
                   記録:{" "}
                   <strong style={{ fontSize: "16px" }}>
-                    {finalScoreMs ? msToClock(finalScoreMs) : msToClock(elapsedMs)}
+                    {finalScoreMs
+                      ? msToClock(finalScoreMs)
+                      : msToClock(elapsedMs)}
                   </strong>
                   <br />
                   ミス {penalties}回
@@ -591,7 +652,14 @@ export default function GameWordFinder({ onBackToHome }) {
                   ベスト({gridSize}個):{" "}
                   {bestTimes[gridSize] ? msToClock(bestTimes[gridSize]) : "–"}
                 </div>
-                <div style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.4, fontWeight: 500 }}>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    lineHeight: 1.4,
+                    fontWeight: 500,
+                  }}
+                >
                   「スタート / もう一回」で再挑戦！
                 </div>
               </div>
