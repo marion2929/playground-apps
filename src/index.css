@@ -66,3 +66,32 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+
+/* === Full-bleed fix overrides === */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden; /* 右側の白帯防止 */
+}
+
+body {
+  display: block;         /* ← 初期の flex を無効化 */
+  place-items: unset;     /* ← 初期の中央寄せを解除 */
+  min-width: 0;           /* ← 320px固定を解除して端末幅に追従 */
+  background: transparent;/* :root 背景色の影響を受けないよう透明に */
+}
+
+/* Vite の #root が max-width / margin auto で中央寄せしている場合に備えて */
+#root {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* :root の背景色が邪魔する場合は透明化（必要なら） */
+:root {
+  background-color: transparent;
+}
