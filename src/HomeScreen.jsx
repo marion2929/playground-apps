@@ -6,8 +6,10 @@ export default function HomeScreen({
   onSelectLinesFinder,
 }) {
   // =========================
-  // 曲リスト（あなた指定の最新版）
+  //  音楽プレイヤー用の状態
   // =========================
+
+  // 曲リスト（あなた指定の最新版）
   const TRACKS = [
     { title: "やさしいBGM 01", src: "/BGM.mp3" },
     { title: "やさしいBGM 02", src: "/bgm02.mp3" },
@@ -20,26 +22,24 @@ export default function HomeScreen({
     { title: "夕立のあとで", src: "/music05.mp3" },
   ];
 
-  // 再生状態
+  // 再生している曲のindex
   const [trackIndex, setTrackIndex] = useState(0);
+  // 再生中かどうか
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 音量（0～10）
-  const [volume, setVolume] = useState(5);
-
-  // 再生位置
-  const [currentTime, setCurrentTime] = useState(0); // 秒
-  const [duration, setDuration] = useState(0); // 秒
+  // 再生位置(秒)と曲の長さ(秒)
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const audioRef = useRef(null);
   const currentTrack = TRACKS[trackIndex];
 
-  // mm:ss に整形
+  // mm:ss 表示用
   function toClock(sec) {
     const s = Math.floor(sec);
-    const mPart = Math.floor(s / 60);
-    const sPart = s % 60;
-    return mPart.toString() + ":" + sPart.toString().padStart(2, "0");
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return m.toString() + ":" + ss.toString().padStart(2, "0");
   }
 
   // 再生/一時停止
@@ -51,14 +51,16 @@ export default function HomeScreen({
     } else {
       audioRef.current
         .play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+        })
         .catch(() => {
-          // モバイルの自動再生ブロックなどで失敗することはある
+          // iPhoneの「ユーザー操作なし自動再生ブロック」とかで失敗することはある
         });
     }
   }
 
-  // 曲を選んだ時
+  // 曲を選び直した時
   function handleSelectTrack(e) {
     const idx = Number(e.target.value);
     if (idx === trackIndex) return;
@@ -66,15 +68,13 @@ export default function HomeScreen({
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
   }
 
-  // 音量スライダー
-  function handleVolumeChange(e) {
-    const v = Number(e.target.value);
-    setVolume(v);
-  }
-
-  // シークバー（再生位置）
+  // シークバーを動かしたとき
   function handleSeekChange(e) {
     const sec = Number(e.target.value);
     if (!audioRef.current) return;
@@ -82,115 +82,78 @@ export default function HomeScreen({
     setCurrentTime(sec);
   }
 
-  // 音量を常に同期
+  // 曲のメタ情報/進行状況を監視
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 10; // 0.0〜1.0
-    }
-  }, [volume]);
-
-  // audioイベント監視
-  useEffect(() => {
-    const audioEl = audioRef.current;
-    if (!audioEl) return;
+    const el = audioRef.current;
+    if (!el) return;
 
     function onLoadedMeta() {
-      setDuration(audioEl.duration || 0);
+      setDuration(el.duration || 0);
     }
     function onTimeUpdate() {
-      setCurrentTime(audioEl.currentTime || 0);
+      setCurrentTime(el.currentTime || 0);
     }
     function onEnded() {
-      setIsPlaying(false); // ループしない、止めるだけ
+      setIsPlaying(false); // 自動では次に行かない・ループもしない
     }
 
-    audioEl.addEventListener("loadedmetadata", onLoadedMeta);
-    audioEl.addEventListener("timeupdate", onTimeUpdate);
-    audioEl.addEventListener("ended", onEnded);
+    el.addEventListener("loadedmetadata", onLoadedMeta);
+    el.addEventListener("timeupdate", onTimeUpdate);
+    el.addEventListener("ended", onEnded);
 
     return () => {
-      audioEl.removeEventListener("loadedmetadata", onLoadedMeta);
-      audioEl.removeEventListener("timeupdate", onTimeUpdate);
-      audioEl.removeEventListener("ended", onEnded);
+      el.removeEventListener("loadedmetadata", onLoadedMeta);
+      el.removeEventListener("timeupdate", onTimeUpdate);
+      el.removeEventListener("ended", onEnded);
     };
   }, [trackIndex]);
 
-  // トラック切り替え時にaudio差し替え
-  useEffect(() => {
-    if (!audioRef.current) return;
-    const el = audioRef.current;
-    el.pause();
-    el.currentTime = 0;
-    setCurrentTime(0);
-    setDuration(0);
-
-    if (isPlaying) {
-      // すぐplayしようとするとブラウザが嫌がることあるのでちょい遅らせる
-      setTimeout(() => {
-        el
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch(() => setIsPlaying(false));
-      }, 50);
-    }
-  }, [trackIndex]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // =========================
-  // スタイル
+  //  見た目用のスタイル
   // =========================
 
-  // 画面全体（背景グラデ）
+  // 画面全体の背景
   const bgStyle = {
     minHeight: "100vh",
     background:
       "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
     backgroundAttachment: "fixed",
     fontFamily: "system-ui, sans-serif",
-    padding: "24px 16px 80px",
-    boxSizing: "border-box",
-    maxWidth: "100%",
-    overflowX: "hidden",
-    display: "flex",
-    justifyContent: "flex-start",
-  };
-
-  // ← NEW: 中身をまとめる共通ラッパ
-  // これで中のカード群が常に同じ幅(最大360pxとか)で揃うので
-  // スマホでも「はみ出してるように見える」現象を防ぐ
-  const innerWrapStyle = {
-    width: "100%",
-    maxWidth: "360px", // ここが「見せたい幅」
     display: "flex",
     flexDirection: "column",
-    gap: "16px",
-    margin: "0 auto", // 画面中央に寄せる
+    alignItems: "center",
+    justifyContent: "flex-start",
+    padding: "24px 16px 80px",
+    boxSizing: "border-box",
   };
 
-  // 白カード（ゲーム選択／プレイヤー）共通
-  const baseCard = {
+  // 共通カード
+  const cardStyle = {
     backgroundColor: "rgba(255,255,255,0.8)",
     backdropFilter: "blur(4px)",
     border: "1px solid rgba(255,255,255,0.6)",
     borderRadius: "16px",
     boxShadow: "0 16px 40px rgba(0,0,0,0.08)",
     padding: "16px",
+    width: "100%",
+    maxWidth: "380px",
+    margin: "0 auto 24px",
     boxSizing: "border-box",
-    width: "100%", // innerWrapの幅にフィット
   };
 
-  // タイトル(Positive Playroom)
+  // タイトル（グラデーション文字）
   const titleTextStyle = {
     background:
       "linear-gradient(90deg,#0ea5e9 0%,#38bdf8 30%,#34d399 60%,#fde047 100%)",
     WebkitBackgroundClip: "text",
     color: "transparent",
-    fontSize: "20px",
+    fontSize: "22px",
     fontWeight: "700",
     textAlign: "center",
     marginBottom: "12px",
   };
 
-  // サブテキスト
+  // サブ説明
   const subTextStyle = {
     color: "#374151",
     fontSize: "14px",
@@ -200,158 +163,122 @@ export default function HomeScreen({
     marginBottom: "20px",
   };
 
-  // ボタンたち
-  const mainBtnStyle = {
-    background: "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+  // ゲームボタン（青～緑）
+  const gameButtonStyleMain = {
+    background:
+      "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
     color: "#fff",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "12px",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.15)",
     fontWeight: "600",
-    fontSize: "15px",
-    padding: "12px 14px",
+    fontSize: "16px",
+    padding: "14px 16px",
     width: "100%",
     cursor: "pointer",
     textAlign: "center",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
   };
 
-  const altBtnStyle = {
-    background: "linear-gradient(90deg,#facc15 0%,#fcd34d 30%,#86efac 100%)",
+  // ゲームボタン（黄色～緑）
+  const gameButtonStyleAlt = {
+    background:
+      "linear-gradient(90deg,#facc15 0%,#fcd34d 30%,#86efac 100%)",
     color: "#1f2937",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "12px",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.15)",
     fontWeight: "600",
-    fontSize: "15px",
-    padding: "12px 14px",
+    fontSize: "16px",
+    padding: "14px 16px",
     width: "100%",
     cursor: "pointer",
     textAlign: "center",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
   };
 
-  // プレイヤー見出し
-  const playerHeaderStyle = {
-    fontWeight: "700",
-    fontSize: "15px",
-    color: "#0ea5e9",
-    textAlign: "center",
-    marginBottom: "12px",
-  };
-
-  // セレクトボックス＋ボタンの並び
-  const selectStyle = {
-    width: "100%",
-    fontSize: "14px",
-    borderRadius: "6px",
-    border: "1px solid #9ca3af",
-    padding: "8px",
-    boxSizing: "border-box",
-    marginBottom: "12px",
-    backgroundColor: "#fff",
-  };
-
-  const playButtonStyle = {
-    width: "100%",
-    background:
-      "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#1d4ed8 100%)",
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: "14px",
-    border: "1px solid #1e40af",
-    borderRadius: "6px",
-    padding: "10px",
-    marginBottom: "16px",
-    cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.2)",
-  };
-
-  // ラベル＋スライダー
-  const sliderLabelStyle = {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#374151",
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "4px",
-  };
-
-  const sliderInputStyle = {
-    width: "100%",
-    marginBottom: "12px",
-  };
-
-  const timeRowStyle = {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "12px",
-    color: "#4b5563",
-    marginTop: "-8px",
-    marginBottom: "16px",
-  };
-
-  // =========================
-  // JSX
-  // =========================
   return (
     <div style={bgStyle}>
-      {/* 中身を中央にまとめるラッパ */}
-      <div style={innerWrapStyle}>
-        {/* --- ゲーム選択カード --- */}
-        <div style={baseCard}>
-          <div style={titleTextStyle}>Positive Playroom</div>
+      {/* ---------------------------
+          カード1: アプリ紹介＋ゲーム3つ
+         --------------------------- */}
+      <div style={cardStyle}>
+        <div style={titleTextStyle}>Positive Playroom</div>
 
-          <div style={subTextStyle}>
-            ミニゲームや音楽を通して
-            <br />
-            心を少し軽くする、やさしい遊び場です。
-            <br />
-            スキマ時間の気分転換にどうぞ🍀
-          </div>
-
-          <div style={{ display: "grid", gap: "10px" }}>
-            <button
-              style={mainBtnStyle}
-              onClick={onSelectSmileFinder}
-            >
-              Smile Finder（表情を見分ける）
-            </button>
-
-            <button
-              style={altBtnStyle}
-              onClick={onSelectWordFinder}
-            >
-              Positive Word Finder（ことばを見分ける）
-            </button>
-
-            <button
-              style={altBtnStyle}
-              onClick={onSelectLinesFinder}
-            >
-              Positive Lines Finder（伝え方を見分ける）
-            </button>
-          </div>
+        <div style={subTextStyle}>
+          ミニゲームや音楽を通して
+          <br />
+          心を少し軽くする、やさしい遊び場です。
+          <br />
+          スキマ時間の気分転換にどうぞ🍀
         </div>
 
-        {/* --- 音楽プレイヤーカード --- */}
-        <div style={baseCard}>
-          <div style={playerHeaderStyle}>音楽プレイヤー</div>
+        <div style={{ display: "grid", gap: "12px" }}>
+          <button
+            style={gameButtonStyleMain}
+            onClick={onSelectSmileFinder}
+          >
+            Smile Finder（表情を見分ける）
+          </button>
 
-          {/* 曲を選ぶ */}
+          <button
+            style={gameButtonStyleAlt}
+            onClick={onSelectWordFinder}
+          >
+            Positive Word Finder（ことばを見分ける）
+          </button>
+
+          <button
+            style={gameButtonStyleAlt}
+            onClick={onSelectLinesFinder}
+          >
+            Positive Lines Finder（伝え方を見分ける）
+          </button>
+        </div>
+      </div>
+
+      {/* ---------------------------
+          カード2: 音楽プレイヤー
+         --------------------------- */}
+      <div style={cardStyle}>
+        {/* タイトル */}
+        <div
+          style={{
+            fontWeight: "700",
+            fontSize: "16px",
+            color: "#0ea5e9",
+            textAlign: "center",
+            marginBottom: "12px",
+          }}
+        >
+          音楽プレイヤー
+        </div>
+
+        {/* 曲選択 */}
+        <div style={{ marginBottom: "12px" }}>
           <label
+            htmlFor="trackSelect"
             style={{
-              fontSize: "12px",
+              display: "block",
+              fontSize: "13px",
               fontWeight: "600",
               color: "#374151",
-              display: "block",
               marginBottom: "4px",
             }}
           >
             曲を選ぶ
           </label>
           <select
-            style={selectStyle}
+            id="trackSelect"
             value={trackIndex}
             onChange={handleSelectTrack}
+            style={{
+              width: "100%",
+              fontSize: "14px",
+              borderRadius: "8px",
+              border: "1px solid #93c5fd",
+              padding: "8px",
+              backgroundColor: "#fff",
+              color: "#1f2937",
+            }}
           >
             {TRACKS.map((t, i) => (
               <option key={i} value={i}>
@@ -359,58 +286,61 @@ export default function HomeScreen({
               </option>
             ))}
           </select>
+        </div>
 
-          {/* 再生・一時停止 */}
-          <button style={playButtonStyle} onClick={togglePlay}>
-            {isPlaying ? "一時停止" : "再生"}
+        {/* 再生/一時停止ボタン */}
+        <div style={{ marginBottom: "16px", textAlign: "center" }}>
+          <button
+            onClick={togglePlay}
+            style={{
+              background:
+                "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "12px",
+              fontWeight: "600",
+              fontSize: "16px",
+              padding: "12px 16px",
+              width: "100%",
+              maxWidth: "240px",
+              boxShadow: "0 16px 32px rgba(0,0,0,0.15)",
+            }}
+          >
+            {isPlaying ? "⏸ 一時停止" : "▶ 再生"}
           </button>
+        </div>
 
-          {/* 音量スライダー */}
-          <div style={sliderLabelStyle}>
-            <span>音量: {volume}/10</span>
-          </div>
-<input
-  type="range"
-  min={0}
-  max={10}
-  step={1}
-  value={volume}
-  onChange={handleVolumeChange}
-  style={{
-    width: "100%",
-    accentColor: "#3b82f6", // （この行は見た目の色だけ。なくてもOK）
-  }}
-/>
-<div style={{ fontSize: "12px", textAlign: "right", color: "#6b7280" }}>
-  音量: {volume}/10
-</div>
-
-
-          {/* 再生位置スライダー */}
-          <div style={sliderLabelStyle}>
-            <span>再生位置</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            step={0.1}
-            value={currentTime}
-            onChange={handleSeekChange}
-            style={sliderInputStyle}
-          />
-          <div style={timeRowStyle}>
+        {/* 再生位置シークバー */}
+        <div style={{ marginBottom: "8px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "12px",
+              color: "#6b7280",
+              marginBottom: "4px",
+            }}
+          >
             <span>{toClock(currentTime)}</span>
             <span>{toClock(duration)}</span>
           </div>
 
-          {/* 実際のaudio要素（画面に見せない） */}
-          <audio
-            ref={audioRef}
-            src={currentTrack.src}
-            preload="metadata"
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            step={0.01}
+            value={currentTime}
+            onChange={handleSeekChange}
+            style={{
+              width: "100%",
+              accentColor: "#3b82f6",
+            }}
           />
         </div>
+
+        {/* 実際のaudioタグ（UIは自分で作ってるからコントロールは非表示） */}
+        <audio ref={audioRef} src={currentTrack.src} />
       </div>
     </div>
   );
