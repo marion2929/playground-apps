@@ -125,6 +125,8 @@ export default function HomeScreen({
     justifyContent: "flex-start",
     padding: "24px 16px 80px",
     boxSizing: "border-box",
+    overflowX: "hidden", // ★ 横ズレ防止
+    width: "100%",       // ★ 画面幅にフィット
   };
 
   // 共通カード
@@ -135,11 +137,12 @@ export default function HomeScreen({
     borderRadius: "16px",
     boxShadow: "0 16px 40px rgba(0,0,0,0.08)",
     padding: "16px",
-    width: "100%",
-    maxWidth: "380px",
+    width: "100%",        // ★ 横幅を100%に統一
+    maxWidth: "420px",    // ★ スマホに合わせた最大幅
     margin: "0 auto 24px",
-    boxSizing: "border-box",
+    boxSizing: "border-box", // ★ パディング込み幅
   };
+
 
   // タイトル（グラデーション文字）
   const titleTextStyle = {
