@@ -112,22 +112,38 @@ export default function HomeScreen({
   //  見た目用のスタイル
   // =========================
 
-  // 画面全体の背景
-  const bgStyle = {
-    minHeight: "100vh",
-    background:
-      "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
-    backgroundAttachment: "fixed",
-    fontFamily: "system-ui, sans-serif",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    padding: "24px 16px 80px",
-    boxSizing: "border-box",
-    overflowX: "hidden", // ★ 横ズレ防止
-    width: "100%",       // ★ 画面幅にフィット
-  };
+// 画面全体の背景（右の余白を消す修正版）
+const bgStyle = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
+  backgroundAttachment: "fixed",
+  backgroundPosition: "center center",
+  backgroundRepeat: "no-repeat",
+  backgroundSize: "cover",
+
+  fontFamily: "system-ui, sans-serif",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  padding: "24px 16px 80px",
+  boxSizing: "border-box",
+
+  // ★ 横ズレ・余白対策
+  width: "100vw",
+  maxWidth: "100vw",
+  minWidth: "100vw",
+  overflowX: "hidden",
+
+  // ★ フルブリード補正（親の中央寄せの影響を切る）
+  position: "relative",
+  left: "50%",
+  right: "50%",
+  marginLeft: "-50vw",
+  marginRight: "-50vw",
+};
+
 
   // 共通カード
   const cardStyle = {
