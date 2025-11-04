@@ -121,10 +121,11 @@ function saveBestTimeSmile(size, ms) {
 export default function GameSmileFinder({ onBackToHome }) {
   const { initSfx, playSfx } = useSfx();
 
-  const LEVELS = [10, 20, 30, 40, 50];
+  // ★ レベルを 8/16/24/32/40 に変更（正解は常に 1/4）
+  const LEVELS = [8, 16, 24, 32, 40];
 
   // ---- ゲーム状態 ----
-  const [gridSize, setGridSize] = useState(10);
+  const [gridSize, setGridSize] = useState(8);
   const [grid, setGrid] = useState([]);
   const [targets, setTargets] = useState([]);
   const [found, setFound] = useState({});
@@ -170,32 +171,35 @@ export default function GameSmileFinder({ onBackToHome }) {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [running]);
 
+  // ---- ユニーク抽選（重複なし）ヘルパー ----
+  function takeUniqueRandom(pool, count) {
+    const shuffled = shuffle(pool);
+    const sliced = shuffled.slice(0, count); // 重複なしで切り出し
+    return sliced.map((base) => ({
+      ...base,
+      // 表示カードとして一意な uid を付与
+      uid: base.baseId + "#" + Math.random().toString(36).slice(2),
+    }));
+  }
+
   // ---- ゲーム開始（ユーザー操作で呼ばれる）----
   function startGame() {
     // 効果音初期化＆プリロード（自動再生制限を回避）
     initSfx();
 
-    const smileRatio = 0.3;
-    const smilesNeeded = Math.max(1, Math.round(gridSize * smileRatio));
+    // 正解は常に全体の 1/4（8→2, 16→4, ...）
+    const smilesNeeded = Math.max(1, Math.round(gridSize / 4));
 
-    const POOL = shuffle(buildImagePool());
+    // プールを構築
+    const POOL = buildImagePool();
     const smilesPool = POOL.filter((p) => p.isSmile);
     const nonPool = POOL.filter((p) => !p.isSmile);
 
-    function takeRandom(pool, count) {
-      const result = [];
-      for (let i = 0; i < count; i++) {
-        const base = pool[Math.floor(Math.random() * pool.length)];
-        result.push({
-          ...base,
-          uid: base.baseId + "#" + Math.random().toString(36).slice(2),
-        });
-      }
-      return result;
-    }
+    // 重複なしで抽選
+    const smileItems = takeUniqueRandom(smilesPool, smilesNeeded);
+    const nonItems = takeUniqueRandom(nonPool, gridSize - smileItems.length);
 
-    const smileItems = takeRandom(smilesPool, smilesNeeded);
-    const nonItems = takeRandom(nonPool, gridSize - smileItems.length);
+    // 合体してシャッフル
     const merged = shuffle([...smileItems, ...nonItems]);
 
     setGrid(merged);
@@ -315,14 +319,24 @@ export default function GameSmileFinder({ onBackToHome }) {
     background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
     borderRadius: "16px", padding: "8px", marginTop: "16px", position: "relative",
   };
-  const gridAreaStyle = { marginTop: "4px", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", maxHeight: "70vh", overflowY: "auto" };
+
+  // ★ 4列固定・最小幅80px・横スクロールで崩れ防止
+  const gridAreaStyle = {
+    marginTop: "4px",
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(80px, 1fr))",
+    gap: "8px",
+    maxHeight: "70vh",
+    overflowY: "auto",
+    overflowX: "auto",       // 画面が極端に狭くても重なり防止
+  };
 
   return (
     <div style={appBgStyle}>
       <div style={outerWrapStyle}>
         <div style={controlPanelStyle}>
           <div style={headerRowStyle}>
-            <div style={headerTextStyle}>にこぽじ</div>
+            <div style={headerTextStyle}>にこぽち</div>
             <button onClick={onBackToHome} style={backBtnStyle}>← ホームへ</button>
           </div>
 
@@ -345,10 +359,10 @@ export default function GameSmileFinder({ onBackToHome }) {
             </div>
           </div>
 
-          {/* レベル */}
+          {/* レベル（8/16/24/32/40） */}
           <div style={levelBlockStyle}>
             <div style={{ fontWeight: 600, marginBottom: "8px" }}>
-              レベル（人数）: {gridSize}人
+              レベル（人数）: {gridSize}人（正解 {Math.round(gridSize/4)}人）
             </div>
             <div style={levelButtonsWrapStyle}>
               {LEVELS.map((num) => (
@@ -396,24 +410,7 @@ export default function GameSmileFinder({ onBackToHome }) {
                 return (
                   <button
                     key={item.uid}
-                    onClick={() => {
-                      const isTarget = targets.includes(item.uid);
-                      if (isTarget) {
-                        playSfx("correct");
-                        setFound((prev) => (prev[item.uid] ? prev : { ...prev, [item.uid]: true }));
-                      } else {
-                        playSfx("wrong");
-                        setPenalties((p) => p + 1);
-                        setWrongFlash((prev) => ({ ...prev, [item.uid]: true }));
-                        setTimeout(() => {
-                          setWrongFlash((prev) => {
-                            const copy = { ...prev };
-                            delete copy[item.uid];
-                            return copy;
-                          });
-                        }, 1000);
-                      }
-                    }}
+                    onClick={() => handleClick(item)}
                     style={{
                       position: "relative",
                       borderRadius: "10px",
