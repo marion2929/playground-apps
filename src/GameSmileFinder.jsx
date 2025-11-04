@@ -322,7 +322,7 @@ export default function GameSmileFinder({ onBackToHome }) {
       <div style={outerWrapStyle}>
         <div style={controlPanelStyle}>
           <div style={headerRowStyle}>
-            <div style={headerTextStyle}>Smile Finder</div>
+            <div style={headerTextStyle}>にこぽじ</div>
             <button onClick={onBackToHome} style={backBtnStyle}>← ホームへ</button>
           </div>
 

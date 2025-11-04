@@ -1,20 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 
 export default function HomeScreen({
-  onSelectSmileFinder,
-  onSelectWordFinder,
-  onSelectLinesFinder,
+  onSelectSmileFinder, // にこぽち
+  onSelectWordFinder,  // ぽじたん
 }) {
   // =========================
   //  音楽プレイヤー用の状態
   // =========================
 
-  // 曲リスト（あなた指定の最新版）
   const TRACKS = [
-    { title: "やさしいBGM 01", src: "/BGM.mp3" },
-    { title: "やさしいBGM 02", src: "/bgm02.mp3" },
-    { title: "やさしいBGM 03", src: "/bgm03.mp3" },
-    { title: "やさしいBGM 04", src: "/bgm04.mp3" },
+    { title: "ピアノ曲 01", src: "/BGM.mp3" },
+    { title: "ピアノ曲 02", src: "/bgm02.mp3" },
+    { title: "ピアノ曲 03", src: "/bgm03.mp3" },
+    { title: "ピアノ曲 04", src: "/bgm04.mp3" },
     { title: "終わりの静寂", src: "/music01.mp3" },
     { title: "遥かな君へ", src: "/music02.mp3" },
     { title: "エンドロール", src: "/music03.mp3" },
@@ -22,45 +20,31 @@ export default function HomeScreen({
     { title: "夕立のあとで", src: "/music05.mp3" },
   ];
 
-  // 再生している曲のindex
   const [trackIndex, setTrackIndex] = useState(0);
-  // 再生中かどうか
   const [isPlaying, setIsPlaying] = useState(false);
-
-  // 再生位置(秒)と曲の長さ(秒)
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
   const audioRef = useRef(null);
   const currentTrack = TRACKS[trackIndex];
 
-  // mm:ss 表示用
   function toClock(sec) {
     const s = Math.floor(sec);
     const m = Math.floor(s / 60);
     const ss = s % 60;
     return m.toString() + ":" + ss.toString().padStart(2, "0");
-  }
+    }
 
-  // 再生/一時停止
   function togglePlay() {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch(() => {
-          // iPhoneの「ユーザー操作なし自動再生ブロック」とかで失敗することはある
-        });
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }
 
-  // 曲を選び直した時
   function handleSelectTrack(e) {
     const idx = Number(e.target.value);
     if (idx === trackIndex) return;
@@ -74,7 +58,6 @@ export default function HomeScreen({
     }
   }
 
-  // シークバーを動かしたとき
   function handleSeekChange(e) {
     const sec = Number(e.target.value);
     if (!audioRef.current) return;
@@ -82,25 +65,17 @@ export default function HomeScreen({
     setCurrentTime(sec);
   }
 
-  // 曲のメタ情報/進行状況を監視
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
 
-    function onLoadedMeta() {
-      setDuration(el.duration || 0);
-    }
-    function onTimeUpdate() {
-      setCurrentTime(el.currentTime || 0);
-    }
-    function onEnded() {
-      setIsPlaying(false); // 自動では次に行かない・ループもしない
-    }
+    function onLoadedMeta() { setDuration(el.duration || 0); }
+    function onTimeUpdate() { setCurrentTime(el.currentTime || 0); }
+    function onEnded() { setIsPlaying(false); }
 
     el.addEventListener("loadedmetadata", onLoadedMeta);
     el.addEventListener("timeupdate", onTimeUpdate);
     el.addEventListener("ended", onEnded);
-
     return () => {
       el.removeEventListener("loadedmetadata", onLoadedMeta);
       el.removeEventListener("timeupdate", onTimeUpdate);
@@ -109,41 +84,38 @@ export default function HomeScreen({
   }, [trackIndex]);
 
   // =========================
-  //  見た目用のスタイル
+  //  スタイル
   // =========================
 
-// 画面全体の背景（右の余白を消す修正版）
-const bgStyle = {
-  minHeight: "100vh",
-  background:
-    "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
-  backgroundAttachment: "fixed",
-  backgroundPosition: "center center",
-  backgroundRepeat: "no-repeat",
-  backgroundSize: "cover",
+  // 画面全体（横余白対策済）
+  const bgStyle = {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at 20% 20%, #fffbe6 0%, #e0f7ff 40%, #e8f9f1 70%)",
+    backgroundAttachment: "fixed",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
 
-  fontFamily: "system-ui, sans-serif",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  padding: "24px 16px 80px",
-  boxSizing: "border-box",
+    fontFamily: "system-ui, sans-serif",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    padding: "24px 16px 80px",
+    boxSizing: "border-box",
 
-  // ★ 横ズレ・余白対策
-  width: "100vw",
-  maxWidth: "100vw",
-  minWidth: "100vw",
-  overflowX: "hidden",
+    width: "100vw",
+    maxWidth: "100vw",
+    minWidth: "100vw",
+    overflowX: "hidden",
 
-  // ★ フルブリード補正（親の中央寄せの影響を切る）
-  position: "relative",
-  left: "50%",
-  right: "50%",
-  marginLeft: "-50vw",
-  marginRight: "-50vw",
-};
-
+    position: "relative",
+    left: "50%",
+    right: "50%",
+    marginLeft: "-50vw",
+    marginRight: "-50vw",
+  };
 
   // 共通カード
   const cardStyle = {
@@ -153,14 +125,13 @@ const bgStyle = {
     borderRadius: "16px",
     boxShadow: "0 16px 40px rgba(0,0,0,0.08)",
     padding: "16px",
-    width: "100%",        // ★ 横幅を100%に統一
-    maxWidth: "420px",    // ★ スマホに合わせた最大幅
+    width: "100%",
+    maxWidth: "420px",
     margin: "0 auto 24px",
-    boxSizing: "border-box", // ★ パディング込み幅
+    boxSizing: "border-box",
   };
 
-
-  // タイトル（グラデーション文字）
+  // タイトル
   const titleTextStyle = {
     background:
       "linear-gradient(90deg,#0ea5e9 0%,#38bdf8 30%,#34d399 60%,#fde047 100%)",
@@ -169,20 +140,20 @@ const bgStyle = {
     fontSize: "22px",
     fontWeight: "700",
     textAlign: "center",
-    marginBottom: "12px",
+    marginBottom: "8px",
   };
 
-  // サブ説明
+  // サブ説明（タグライン）
   const subTextStyle = {
     color: "#374151",
     fontSize: "14px",
-    fontWeight: "500",
+    fontWeight: "600",
     lineHeight: 1.4,
     textAlign: "center",
     marginBottom: "20px",
   };
 
-  // ゲームボタン（青～緑）
+  // ゲームボタン
   const gameButtonStyleMain = {
     background:
       "linear-gradient(90deg,#3b82f6 0%,#38bdf8 50%,#34d399 100%)",
@@ -197,8 +168,6 @@ const bgStyle = {
     cursor: "pointer",
     textAlign: "center",
   };
-
-  // ゲームボタン（黄色～緑）
   const gameButtonStyleAlt = {
     background:
       "linear-gradient(90deg,#facc15 0%,#fcd34d 30%,#86efac 100%)",
@@ -214,49 +183,43 @@ const bgStyle = {
     textAlign: "center",
   };
 
+  // サイト説明カード（下部に新設）
+  const aboutCardStyle = {
+    ...cardStyle,
+    maxWidth: "720px",
+  };
+  const faintRuleStyle = {
+    textAlign: "center",
+    color: "#94a3b8",
+    letterSpacing: "0.3em",
+    margin: "8px 0",
+    userSelect: "none",
+  };
+
   return (
     <div style={bgStyle}>
-      {/* ---------------------------
-          カード1: アプリ紹介＋ゲーム3つ
-         --------------------------- */}
+      {/* カード1：サイト名＋ゲーム2つ */}
       <div style={cardStyle}>
-        <div style={titleTextStyle}>Positive Playroom</div>
-
-        <div style={subTextStyle}>
-          ミニゲームや音楽を通して
-          <br />
-          心を少し軽くする、やさしい遊び場です。
-          <br />
-          スキマ時間の気分転換にどうぞ🍀
-        </div>
+        <div style={titleTextStyle}>こころびひろば</div>
+        <div style={subTextStyle}>ほっとひといき、まえをむくためのひろば。</div>
 
         <div style={{ display: "grid", gap: "12px" }}>
-          <button
-            style={gameButtonStyleMain}
-            onClick={onSelectSmileFinder}
-          >
-            Smile Finder
+          <button style={gameButtonStyleMain} onClick={onSelectSmileFinder}>
+            にこぽち
             <br />
-            （笑顔を見つける）
+            （色んな表情から笑顔の人をみつける）
           </button>
 
-          <button
-            style={gameButtonStyleAlt}
-            onClick={onSelectWordFinder}
-          >
-            Positive Word Finder
+          <button style={gameButtonStyleAlt} onClick={onSelectWordFinder}>
+            ぽじたん
             <br />
-            （前向きな言葉を探す）
+            （ポジティブな言葉をえらぶ）
           </button>
-
         </div>
       </div>
 
-      {/* ---------------------------
-          カード2: 音楽プレイヤー
-         --------------------------- */}
+      {/* カード2：音楽プレイヤー（既存のまま） */}
       <div style={cardStyle}>
-        {/* タイトル */}
         <div
           style={{
             fontWeight: "700",
@@ -305,7 +268,7 @@ const bgStyle = {
           </select>
         </div>
 
-        {/* 再生/一時停止ボタン */}
+        {/* 再生/一時停止 */}
         <div style={{ marginBottom: "16px", textAlign: "center" }}>
           <button
             onClick={togglePlay}
@@ -327,7 +290,7 @@ const bgStyle = {
           </button>
         </div>
 
-        {/* 再生位置シークバー */}
+        {/* 進行表示＋シーク */}
         <div style={{ marginBottom: "8px" }}>
           <div
             style={{
@@ -349,15 +312,61 @@ const bgStyle = {
             step={0.01}
             value={currentTime}
             onChange={handleSeekChange}
-            style={{
-              width: "100%",
-              accentColor: "#3b82f6",
-            }}
+            style={{ width: "100%", accentColor: "#3b82f6" }}
           />
         </div>
 
-        {/* 実際のaudioタグ（UIは自分で作ってるからコントロールは非表示） */}
         <audio ref={audioRef} src={currentTrack.src} />
+      </div>
+
+      {/* カード3：サイト説明（新規追加／あなたの原稿そのまま） */}
+      <div style={aboutCardStyle} aria-label="こころびひろばの説明">
+        <div style={{ fontSize: "16px", fontWeight: 800, marginBottom: 8 }}>
+          🌸 こころびひろば
+        </div>
+
+        <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+          ― 心に灯りを。心と対話を。心に喜びを。―
+        </div>
+
+        <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
+          <strong>「こころび」</strong>とは、
+          心にそっと灯りをともす「心灯（こころび）」、
+          自分の心と向き合う日「心日（こころび）」、
+          そして、心に喜びを届ける「心＋喜び」。<br />
+          そんな想いを込めた、<strong>“心を整えるためのやさしいひろば”</strong>です。
+        </div>
+
+        <div style={faintRuleStyle}>⸻</div>
+
+        <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
+          <strong>🎮 遊びながらポジティブに</strong><br />
+          ここでは、心理学に基づいた「注意バイアス修正訓練」をもとにした、
+          ポジティブな意識を育てるミニゲームを体験できます。<br />
+          笑顔の写真を見つけたり、前向きな言葉を選んだりするうちに、
+          自然と心の焦点が明るい方へ向かっていく。
+          遊びながら“前向きな気づき”を育てる、そんな優しいトレーニングです。
+        </div>
+
+        <div style={faintRuleStyle}>⸻</div>
+
+        <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
+          <strong>🎹 ピアノの音で、心にやすらぎを</strong><br />
+          サイトでは、静かに流れるピアノの調べがあなたを包みます。
+          日々の疲れをほぐすように、心に穏やかな波を広げてくれる音たち。<br />
+          そして、これまでに私が紡いできた想いをのせた音楽作品も聴くことができます。
+          言葉とメロディがそっと寄り添い、心にやさしい余韻を残します。
+        </div>
+
+        <div style={faintRuleStyle}>⸻</div>
+
+        <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
+          <strong>☀️ 自分のペースで、心を整える場所</strong><br />
+          「こころびひろば」は、誰かに評価されるための場所ではありません。
+          頑張らなくていい、比べなくていい。<br />
+          ただ、遊んで、聴いて、少し微笑む——それだけで十分です。<br />
+          このひろばが、あなたの心に小さな灯りをともすきっかけになりますように。
+        </div>
       </div>
     </div>
   );
