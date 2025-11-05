@@ -33,9 +33,8 @@ function useSfx() {
   async function loadBuffers() {
     if (readyRef.current) return;
     const ctx = audioCtxRef.current;
-    const entries = Object.entries(SFX_FILES);
     const loaded = {};
-    await Promise.all(entries.map(async ([key, url]) => {
+    await Promise.all(Object.entries(SFX_FILES).map(async ([key, url]) => {
       const res = await fetch(url);
       const arr = await res.arrayBuffer();
       loaded[key] = await ctx.decodeAudioData(arr);
@@ -133,6 +132,128 @@ function buildWordPool() {
   return [...positives, ...negatives];
 }
 
+/* ================= ぽじたん日記（ローカル保存：今月カレンダー用） ================= */
+// "YYYY-MM-DD" 形式
+function ymd(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+const DIARY_KEY = "pojitan_diary"; // { "YYYY-MM-DD": total }
+
+function loadDiary() {
+  try {
+    const raw = localStorage.getItem(DIARY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveDiary(obj) {
+  localStorage.setItem(DIARY_KEY, JSON.stringify(obj));
+}
+function addTodayCount(inc) {
+  const d = loadDiary();
+  const key = ymd();
+  d[key] = (d[key] || 0) + inc;
+  saveDiary(d);
+  return d;
+}
+
+/* ================= 今月カレンダー UI（ぽじたん） ================= */
+function CalendarThisMonth({ diary }) {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth(); // 0-11
+  const title = `${y}年 ${m + 1}月`;
+
+  const first = new Date(y, m, 1);
+  const startWeekday = first.getDay(); // 0:日
+  const lastDate = new Date(y, m + 1, 0).getDate();
+
+  const cells = [
+    ...Array.from({ length: startWeekday }, () => null),
+    ...Array.from({ length: lastDate }, (_, i) => i + 1),
+  ];
+
+  const wrapStyle = {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(4px)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    borderRadius: "16px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
+    padding: "16px",
+    width: "100%",
+    maxWidth: "420px",
+    margin: "16px auto 0",
+    boxSizing: "border-box",
+  };
+  const headerStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" };
+  const titleStyle = { fontWeight: 700, fontSize: "16px", color: "#0ea5e9" };
+  const dowStyle = {
+    display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "6px",
+    fontSize: "12px", color: "#6b7280", marginBottom: "6px", textAlign: "center",
+  };
+  const gridStyle = { display: "grid", gridTemplateColumns: "repeat(7, minmax(40px, 1fr))", gap: "6px" };
+  const cellStyle = {
+    backgroundColor: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    minHeight: "64px",
+    padding: "6px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+  };
+  const dayNumStyle = { fontSize: "12px", color: "#6b7280", fontWeight: 600 };
+  const badgeStyle = (isToday) => ({
+    alignSelf: "flex-end",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "2px 6px",
+    borderRadius: "9999px",
+    background: isToday ? "linear-gradient(90deg,#3b82f6,#34d399)" : "#f3f4f6",
+    color: isToday ? "#fff" : "#374151",
+  });
+  const summaryStyle = { marginTop: "8px", fontSize: "12px", color: "#374151", textAlign: "right" };
+
+  const mm = String(m + 1).padStart(2, "0");
+  const monthTotal = Object.entries(diary).reduce((acc, [k, v]) => {
+    return k.startsWith(`${y}-${mm}-`) ? acc + (Number(v) || 0) : acc;
+  }, 0);
+
+  return (
+    <div style={wrapStyle}>
+      <div style={headerStyle}>
+        <div style={titleStyle}>🗓 今月のぽじたん記録 — {title}</div>
+      </div>
+
+      <div style={dowStyle}>
+        <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+      </div>
+
+      <div style={gridStyle}>
+        {cells.map((d, idx) => {
+          if (d == null) return <div key={`e-${idx}`} />;
+          const key = `${y}-${mm}-${String(d).padStart(2, "0")}`;
+          const total = diary[key] || 0;
+          const isToday = key === ymd();
+          return (
+            <div key={key} style={cellStyle}>
+              <div style={dayNumStyle}>{d}</div>
+              <div style={badgeStyle(isToday)}>{total} 枚</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={summaryStyle}>今月の合計：<strong>{monthTotal}</strong> 枚</div>
+    </div>
+  );
+}
+
 /* ================= ベストタイム（localStorage） ================= */
 function bestTimeKeyWord(size) { return `bestTimeWord_${size}`; }
 function loadBestTimeWord(size) {
@@ -150,7 +271,7 @@ function saveBestTimeWord(size, ms) {
 export default function GameWordFinder({ onBackToHome }) {
   const { initSfx, playSfx } = useSfx();
 
-  // ★ レベルを 8/16/24/32/40 に変更
+  // ★ レベルを 8/16/24/32/40
   const LEVELS = [8, 16, 24, 32, 40];
 
   const [gridSize, setGridSize] = useState(8);
@@ -172,6 +293,9 @@ export default function GameWordFinder({ onBackToHome }) {
     LEVELS.forEach((lvl) => { init[lvl] = loadBestTimeWord(lvl); });
     return init;
   });
+
+  // ぽじたん日記（今月カレンダー用）
+  const [diary, setDiary] = useState(() => loadDiary());
 
   const rafRef = useRef(null);
 
@@ -204,18 +328,21 @@ export default function GameWordFinder({ onBackToHome }) {
   function startGame() {
     initSfx(); // SFX初期化
 
-    // ★ 正解枚数は常に総枚数の1/4（レベル定義に沿って 2,4,6,8,10）
+    // ★ 正解枚数は常に総枚数の1/4（8→2, 16→4, ... 40→10）
     const needPositives = Math.max(1, Math.round(gridSize / 4));
 
-    // プール
+    // プール（同一単語を一回のゲーム内で重複させない：baseIdでunique抽出）
     const POOL = shuffle(buildWordPool());
     const posPool = POOL.filter((p) => p.isPositive);
     const negPool = POOL.filter((p) => !p.isPositive);
 
-    function takeRandomWords(pool, count) {
+    function takeUnique(pool, count) {
       const result = [];
-      for (let i = 0; i < count; i++) {
-        const base = pool[Math.floor(Math.random() * pool.length)];
+      const used = new Set();
+      for (let i = 0; i < pool.length && result.length < count; i++) {
+        const base = pool[i];
+        if (used.has(base.baseId)) continue;
+        used.add(base.baseId);
         result.push({
           ...base,
           uid: base.baseId + "#" + Math.random().toString(36).slice(2),
@@ -224,8 +351,8 @@ export default function GameWordFinder({ onBackToHome }) {
       return result;
     }
 
-    const posItems = takeRandomWords(posPool, needPositives);
-    const negItems = takeRandomWords(negPool, gridSize - posItems.length);
+    const posItems = takeUnique(posPool, needPositives);
+    const negItems = takeUnique(negPool, gridSize - posItems.length);
     const merged = shuffle([...posItems, ...negItems]);
 
     setGrid(merged);
@@ -278,7 +405,7 @@ export default function GameWordFinder({ onBackToHome }) {
     }
   }
 
-  // クリア判定
+  // クリア判定（★クリア時に当日の合計へ“正解数”を加算→カレンダー即時反映）
   useEffect(() => {
     if (running && allFound && !gameOver) {
       setRunning(false);
@@ -288,15 +415,18 @@ export default function GameWordFinder({ onBackToHome }) {
 
       const thisRun = Date.now() - startTime + penalties * 3000;
       const prevBest = bestTimes[gridSize];
-
       if (prevBest == null || thisRun < prevBest) {
         saveBestTimeWord(gridSize, thisRun);
         setBestTimes((old) => ({ ...old, [gridSize]: thisRun }));
       }
-    }
-  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes, playSfx]);
 
-  /* ================= スタイル（比率3:2・4列） ================= */
+      const correctCount = targets.length; // 今回見つけたポジティブ単語の数
+      const updated = addTodayCount(correctCount);
+      setDiary(updated);
+    }
+  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes, playSfx, targets.length]);
+
+  /* ================= スタイル（4列固定・最小80px / カード比率3:1） ================= */
   const appBgStyle = {
     minHeight: "100vh",
     background: "linear-gradient(135deg, #fffbe6 0%, #e0f7ff 60%, #e8f9f1 100%)",
@@ -362,22 +492,22 @@ export default function GameWordFinder({ onBackToHome }) {
     boxShadow: "0 8px 24px rgba(0,0,0,0.05)", padding: "8px", position: "relative", marginTop: "16px",
   };
 
-// ★ 盤面グリッド: 常に4列固定。カードの最小幅80pxで重なり防止
-const gridAreaStyle = {
-  marginTop: "4px",
-  display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(80px, 1fr))", // ★ 常に4列、最小80px
-  gap: "8px",
-  maxHeight: "70vh",
-  overflowY: "auto",
-  justifyContent: "center",
-  width: "100%",
-  maxWidth: "960px", // 4列ぶんの上限幅（80×4+余白の目安）
-  marginInline: "auto",
-  boxSizing: "border-box",
-};
+  // ★ 盤面グリッド: 常に4列固定。カードの最小幅80pxで重なり防止
+  const gridAreaStyle = {
+    marginTop: "4px",
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(80px, 1fr))",
+    gap: "8px",
+    maxHeight: "70vh",
+    overflowY: "auto",
+    justifyContent: "center",
+    width: "100%",
+    maxWidth: "960px",
+    marginInline: "auto",
+    boxSizing: "border-box",
+  };
 
-  // ★ カード比率を 3:2 に変更
+  // ★ カード比率（3:1を維持）
   const wordCardStyle = (alreadyFound) => ({
     position: "relative",
     borderRadius: "10px",
@@ -385,14 +515,12 @@ const gridAreaStyle = {
     padding: "8px",
     cursor: "pointer",
     overflow: "hidden",
-    background:
-      "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
-    aspectRatio: "3 / 1", // ← ここを変更
+    background: "linear-gradient(135deg, #fff7ed 0%, #fde68a 50%, #fdba74 100%)",
+    aspectRatio: "3 / 1",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow:
-      "0 4px 8px rgba(253,186,116,0.3), 0 0 12px rgba(255,161,64,0.2)",
+    boxShadow: "0 4px 8px rgba(253,186,116,0.3), 0 0 12px rgba(255,161,64,0.2)",
     textAlign: "center",
     fontSize: "14px",
     fontWeight: "600",
@@ -400,6 +528,7 @@ const gridAreaStyle = {
     color: alreadyFound ? "#6b7280" : "#78350f",
     filter: alreadyFound ? "grayscale(100%) blur(1px)" : "none",
     opacity: alreadyFound ? 0.6 : 1,
+    wordBreak: "keep-all",
   });
 
   return (
@@ -410,9 +539,7 @@ const gridAreaStyle = {
           {/* タイトル＋戻る */}
           <div style={headerRowStyle}>
             <div style={headerTextStyle}>ぽじたん</div>
-            <button onClick={onBackToHome} style={backBtnStyle}>
-              ← ホームへ
-            </button>
+            <button onClick={onBackToHome} style={backBtnStyle}>← ホームへ</button>
           </div>
 
           {/* ステータス */}
@@ -456,12 +583,8 @@ const gridAreaStyle = {
 
           {/* スタート・中止 */}
           <div style={actionRowStyle}>
-            <button onClick={startGame} style={mainButtonStyle}>
-              スタート / もう一回
-            </button>
-            <button onClick={stopGame} style={stopButtonStyle}>
-              中止
-            </button>
+            <button onClick={startGame} style={mainButtonStyle}>スタート / もう一回</button>
+            <button onClick={stopGame} style={stopButtonStyle}>中止</button>
           </div>
         </div>
 
@@ -494,45 +617,28 @@ const gridAreaStyle = {
                     onClick={() => handleClick(item)}
                     style={wordCardStyle(alreadyFound)}
                   >
-                    <div style={{ padding: "4px 6px", wordBreak: "keep-all" }}>
-                      {item.text}
-                    </div>
+                    <div style={{ padding: "4px 6px" }}>{item.text}</div>
 
-                    {/* FOUND */}
                     {alreadyFound && (
                       <div
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#fff",
-                          fontWeight: "bold",
-                          fontSize: "12px",
-                          backgroundColor: "rgba(0,0,0,0.4)",
-                          textShadow: "0 0 4px #000",
+                          position: "absolute", inset: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#fff", fontWeight: "bold", fontSize: "12px",
+                          backgroundColor: "rgba(0,0,0,0.4)", textShadow: "0 0 4px #000",
                         }}
                       >
                         FOUND
                       </div>
                     )}
 
-                    {/* MISS */}
                     {wasWrong && (
                       <div
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          backgroundColor: "rgba(0,0,0,0.4)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#ff4d4d",
-                          fontSize: "28px",
-                          fontWeight: "bold",
-                          textShadow:
-                            "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
+                          position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#ff4d4d", fontSize: "28px", fontWeight: "bold",
+                          textShadow: "0 0 6px rgba(0,0,0,0.8), 0 0 10px rgba(255,0,0,0.8)",
                         }}
                       >
                         ✖
@@ -568,8 +674,7 @@ const gridAreaStyle = {
                   maxWidth: "260px",
                   width: "100%",
                   border: "2px solid #6ee7b7",
-                  boxShadow:
-                    "0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16,185,129,0.55)",
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16,185,129,0.55)",
                 }}
               >
                 <div
@@ -595,21 +700,16 @@ const gridAreaStyle = {
                   {bestTimes[gridSize] ? msToClock(bestTimes[gridSize]) : "–"}
                 </div>
 
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    lineHeight: 1.4,
-                    fontWeight: 500,
-                  }}
-                >
+                <div style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.4, fontWeight: 500 }}>
                   「スタート / もう一回」で再挑戦！
                 </div>
               </div>
             </div>
           )}
         </div>
-        {/* ====== /ゲーム盤面 ====== */}
+
+        {/* ★ 今月カレンダー（盤面の下に表示） */}
+        <CalendarThisMonth diary={diary} />
       </div>
     </div>
   );

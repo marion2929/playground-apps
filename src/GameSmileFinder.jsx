@@ -104,6 +104,150 @@ function buildImagePool() {
   return [...smiles, ...neutrals];
 }
 
+/* ================= にこぽち日記（ローカル保存） ================= */
+// "YYYY-MM-DD" 形式
+function ymd(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+const DIARY_KEY = "nikopoji_diary"; // { "YYYY-MM-DD": total }
+
+function loadDiary() {
+  try {
+    const raw = localStorage.getItem(DIARY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveDiary(obj) {
+  localStorage.setItem(DIARY_KEY, JSON.stringify(obj));
+}
+// 当日の合計を加算
+function addTodayCount(inc) {
+  const d = loadDiary();
+  const key = ymd();
+  d[key] = (d[key] || 0) + inc;
+  saveDiary(d);
+  return d; // ついでに返す
+}
+
+/* ================= 今月カレンダー UI ================= */
+function CalendarThisMonth({ diary }) {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth(); // 0-11
+  const title = `${y}年 ${m + 1}月`;
+
+  // 月情報
+  const first = new Date(y, m, 1);
+  const startWeekday = first.getDay(); // 0:日
+  const lastDate = new Date(y, m + 1, 0).getDate();
+
+  // セル配列（先頭の空白 + 1..末日）
+  const cells = [
+    ...Array.from({ length: startWeekday }, () => null),
+    ...Array.from({ length: lastDate }, (_, i) => i + 1),
+  ];
+
+  const wrapStyle = {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(4px)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    borderRadius: "16px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
+    padding: "16px",
+    width: "100%",
+    maxWidth: "420px",
+    margin: "16px auto 0",
+    boxSizing: "border-box",
+  };
+  const headerStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "8px",
+  };
+  const titleStyle = {
+    fontWeight: 700,
+    fontSize: "16px",
+    color: "#0ea5e9",
+  };
+  const dowStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: "6px",
+    fontSize: "12px",
+    color: "#6b7280",
+    marginBottom: "6px",
+    textAlign: "center",
+  };
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, minmax(40px, 1fr))",
+    gap: "6px",
+  };
+  const cellStyle = {
+    backgroundColor: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    minHeight: "64px",
+    padding: "6px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+  };
+  const dayNumStyle = { fontSize: "12px", color: "#6b7280", fontWeight: 600 };
+  const badgeStyle = (isToday) => ({
+    alignSelf: "flex-end",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "2px 6px",
+    borderRadius: "9999px",
+    background: isToday ? "linear-gradient(90deg,#3b82f6,#34d399)" : "#f3f4f6",
+    color: isToday ? "#fff" : "#374151",
+  });
+  const summaryStyle = { marginTop: "8px", fontSize: "12px", color: "#374151", textAlign: "right" };
+
+  // 合計（今月）
+  const mm = String(m + 1).padStart(2, "0");
+  const monthTotal = Object.entries(diary).reduce((acc, [k, v]) => {
+    return k.startsWith(`${y}-${mm}-`) ? acc + (Number(v) || 0) : acc;
+  }, 0);
+
+  return (
+    <div style={wrapStyle}>
+      <div style={headerStyle}>
+        <div style={titleStyle}>🗓 今月のにこぽち記録 — {title}</div>
+      </div>
+
+      <div style={dowStyle}>
+        <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+      </div>
+
+      <div style={gridStyle}>
+        {cells.map((d, idx) => {
+          if (d == null) return <div key={`e-${idx}`} />;
+          const key = `${y}-${mm}-${String(d).padStart(2, "0")}`;
+          const total = diary[key] || 0;
+          const isToday = key === ymd();
+          return (
+            <div key={key} style={cellStyle}>
+              <div style={dayNumStyle}>{d}</div>
+              <div style={badgeStyle(isToday)}>{total} 人</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={summaryStyle}>今月の合計：<strong>{monthTotal}</strong> 人</div>
+    </div>
+  );
+}
+
 /* ================= ベストタイム（localStorage） ================= */
 function bestTimeKeySmile(size) { return `bestTimeSmile_${size}`; }
 function loadBestTimeSmile(size) {
@@ -121,7 +265,7 @@ function saveBestTimeSmile(size, ms) {
 export default function GameSmileFinder({ onBackToHome }) {
   const { initSfx, playSfx } = useSfx();
 
-  // ★ レベルを 8/16/24/32/40 に変更（正解は常に 1/4）
+  // ★ レベルは 8/16/24/32/40（4列固定運用に合わせやすい）
   const LEVELS = [8, 16, 24, 32, 40];
 
   // ---- ゲーム状態 ----
@@ -135,6 +279,9 @@ export default function GameSmileFinder({ onBackToHome }) {
   const [gameOver, setGameOver] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [now, setNow] = useState(Date.now());
+
+  // にこぽち日記（今月カレンダー用）
+  const [diary, setDiary] = useState(() => loadDiary());
 
   // ハイスコア
   const [bestTimes, setBestTimes] = useState(() => {
@@ -171,35 +318,36 @@ export default function GameSmileFinder({ onBackToHome }) {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [running]);
 
-  // ---- ユニーク抽選（重複なし）ヘルパー ----
-  function takeUniqueRandom(pool, count) {
-    const shuffled = shuffle(pool);
-    const sliced = shuffled.slice(0, count); // 重複なしで切り出し
-    return sliced.map((base) => ({
-      ...base,
-      // 表示カードとして一意な uid を付与
-      uid: base.baseId + "#" + Math.random().toString(36).slice(2),
-    }));
-  }
-
   // ---- ゲーム開始（ユーザー操作で呼ばれる）----
   function startGame() {
     // 効果音初期化＆プリロード（自動再生制限を回避）
     initSfx();
 
-    // 正解は常に全体の 1/4（8→2, 16→4, ...）
+    // 正解は「合計の 1/4 固定」：8→2, 16→4, ... 40→10
     const smilesNeeded = Math.max(1, Math.round(gridSize / 4));
 
-    // プールを構築
-    const POOL = buildImagePool();
+    // プール生成（同じ顔が一度のゲームに出ないよう baseId 単位で unique 抽出）
+    const POOL = shuffle(buildImagePool());
     const smilesPool = POOL.filter((p) => p.isSmile);
     const nonPool = POOL.filter((p) => !p.isSmile);
 
-    // 重複なしで抽選
-    const smileItems = takeUniqueRandom(smilesPool, smilesNeeded);
-    const nonItems = takeUniqueRandom(nonPool, gridSize - smileItems.length);
+    function takeUnique(pool, count) {
+      const seen = new Set();
+      const result = [];
+      for (let i = 0; i < pool.length && result.length < count; i++) {
+        const base = pool[i];
+        if (seen.has(base.baseId)) continue;
+        seen.add(base.baseId);
+        result.push({
+          ...base,
+          uid: base.baseId + "#" + Math.random().toString(36).slice(2),
+        });
+      }
+      return result;
+    }
 
-    // 合体してシャッフル
+    const smileItems = takeUnique(smilesPool, smilesNeeded);
+    const nonItems = takeUnique(nonPool, gridSize - smileItems.length);
     const merged = shuffle([...smileItems, ...nonItems]);
 
     setGrid(merged);
@@ -252,7 +400,7 @@ export default function GameSmileFinder({ onBackToHome }) {
     }
   }
 
-  // クリア判定
+  // クリア判定（クリア時に“その日の合計”へ加算・保存）
   useEffect(() => {
     if (running && allFound && !gameOver) {
       setRunning(false);
@@ -266,8 +414,13 @@ export default function GameSmileFinder({ onBackToHome }) {
         saveBestTimeSmile(gridSize, thisRun);
         setBestTimes((old) => ({ ...old, [gridSize]: thisRun }));
       }
+
+      // ★ その日の合計に「今回の正解数」を加算
+      const correctCount = targets.length;
+      const updated = addTodayCount(correctCount);
+      setDiary(updated); // カレンダーを即時更新
     }
-  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes, playSfx]);
+  }, [allFound, running, gameOver, startTime, penalties, gridSize, bestTimes, playSfx, targets.length]);
 
   /* ================= スタイル ================= */
   const appBgStyle = {
@@ -319,16 +472,14 @@ export default function GameSmileFinder({ onBackToHome }) {
     background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(219,234,254,0.8) 100%)",
     borderRadius: "16px", padding: "8px", marginTop: "16px", position: "relative",
   };
-
-  // ★ 4列固定・最小幅80px・横スクロールで崩れ防止
   const gridAreaStyle = {
+    // ★ 4列固定（最小80pxを確保）
     marginTop: "4px",
     display: "grid",
     gridTemplateColumns: "repeat(4, minmax(80px, 1fr))",
     gap: "8px",
     maxHeight: "70vh",
     overflowY: "auto",
-    overflowX: "auto",       // 画面が極端に狭くても重なり防止
   };
 
   return (
@@ -359,10 +510,10 @@ export default function GameSmileFinder({ onBackToHome }) {
             </div>
           </div>
 
-          {/* レベル（8/16/24/32/40） */}
+          {/* レベル */}
           <div style={levelBlockStyle}>
             <div style={{ fontWeight: 600, marginBottom: "8px" }}>
-              レベル（人数）: {gridSize}人（正解 {Math.round(gridSize/4)}人）
+              レベル（人数）: {gridSize}人
             </div>
             <div style={levelButtonsWrapStyle}>
               {LEVELS.map((num) => (
@@ -526,6 +677,9 @@ export default function GameSmileFinder({ onBackToHome }) {
             </div>
           )}
         </div>
+
+        {/* ★ 今月カレンダー（盤面の下に表示） */}
+        <CalendarThisMonth diary={diary} />
       </div>
     </div>
   );
