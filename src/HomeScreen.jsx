@@ -13,13 +13,13 @@ export default function HomeScreen({
     { title: "ピアノ曲 02", src: "/bgm02.mp3" },
     { title: "ピアノ曲 03", src: "/bgm03.mp3" },
     { title: "ピアノ曲 04", src: "/bgm04.mp3" },
-    { title: "1,終わりの静寂", src: "/music01.mp3" },
-    { title: "2,遥かな君へ", src: "/music02.mp3" },
-    { title: "3,エンドロール", src: "/music03.mp3" },
-    { title: "4,夢枕", src: "/music04.mp3" },
-    { title: "5,夕立のあとで", src: "/music05.mp3" },
-    { title: "6,猫みたいな君", src: "/music06.mp3" },
-    { title: "7,あかきゆめみし", src: "/music07.mp3" },
+    { title: "1 終わりの静寂", src: "/music01.mp3" },
+    { title: "2 遥かな君へ", src: "/music02.mp3" },
+    { title: "3 エンドロール", src: "/music03.mp3" },
+    { title: "4 夢枕", src: "/music04.mp3" },
+    { title: "5 夕立のあとで", src: "/music05.mp3" },
+    { title: "6 猫みたいな君", src: "/music06.mp3" },
+    { title: "7 あかきゆめみし", src: "/music07.mp3" },
   ];
 
   const [trackIndex, setTrackIndex] = useState(0);
@@ -209,7 +209,7 @@ export default function HomeScreen({
           <button style={gameButtonStyleMain} onClick={onSelectSmileFinder}>
             にこぽち
             <br />
-            （色んな表情から笑顔の人をみつける）
+            （色んな表情から笑顔をみつける）
           </button>
 
           <button style={gameButtonStyleAlt} onClick={onSelectWordFinder}>
