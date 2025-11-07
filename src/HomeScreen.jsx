@@ -27,6 +27,11 @@ export default function HomeScreen({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  // ★ 追加：連続再生（ONでプレイリスト巡回、OFFで1曲リピート）
+  const [continuous, setContinuous] = useState(true);
+  // 「次曲へ自動再生」フラグ（onEndedでセット → trackIndex変更後に再生）
+  const autoplayNextRef = useRef(false);
+
   const audioRef = useRef(null);
   const currentTrack = TRACKS[trackIndex];
 
@@ -35,7 +40,7 @@ export default function HomeScreen({
     const m = Math.floor(s / 60);
     const ss = s % 60;
     return m.toString() + ":" + ss.toString().padStart(2, "0");
-    }
+  }
 
   function togglePlay() {
     if (!audioRef.current) return;
@@ -50,6 +55,9 @@ export default function HomeScreen({
   function handleSelectTrack(e) {
     const idx = Number(e.target.value);
     if (idx === trackIndex) return;
+    // ドロップダウンで曲を変えた時は手動操作なので自動再生しない
+    autoplayNextRef.current = false;
+
     setTrackIndex(idx);
     setIsPlaying(false);
     setCurrentTime(0);
@@ -67,13 +75,31 @@ export default function HomeScreen({
     setCurrentTime(sec);
   }
 
+  // ★ 連続再生/リピートの反映（audio.loop を制御）
+  useEffect(() => {
+    if (!audioRef.current) return;
+    // 連続再生ON → loopしない / OFF → 1曲リピート
+    audioRef.current.loop = !continuous;
+  }, [continuous, trackIndex]);
+
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
 
     function onLoadedMeta() { setDuration(el.duration || 0); }
     function onTimeUpdate() { setCurrentTime(el.currentTime || 0); }
-    function onEnded() { setIsPlaying(false); }
+
+    function onEnded() {
+      // loop=trueのときは onended は通常発火しない想定
+      if (continuous) {
+        // 次の曲へ（最後なら先頭へ）
+        const next = (trackIndex + 1) % TRACKS.length;
+        autoplayNextRef.current = true; // 次トラックが読み込まれたら再生開始
+        setTrackIndex(next);
+      }
+      // 1曲リピート時は audio.loop=true で自動で再生が繰り返される
+      // isPlaying は継続扱い
+    }
 
     el.addEventListener("loadedmetadata", onLoadedMeta);
     el.addEventListener("timeupdate", onTimeUpdate);
@@ -83,6 +109,15 @@ export default function HomeScreen({
       el.removeEventListener("timeupdate", onTimeUpdate);
       el.removeEventListener("ended", onEnded);
     };
+  }, [trackIndex, continuous, TRACKS.length]);
+
+  // ★ trackIndex が連続再生で変更されたとき、自動再生を実行
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (autoplayNextRef.current) {
+      autoplayNextRef.current = false;
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
   }, [trackIndex]);
 
   // =========================
@@ -198,6 +233,25 @@ export default function HomeScreen({
     userSelect: "none",
   };
 
+  // 追加UIのスタイル（トグル行）
+  const toggleRowStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "10px",
+  };
+  const toggleLabelStyle = { fontSize: "13px", color: "#374151", fontWeight: 600 };
+  const modeBadgeStyle = {
+    fontSize: "12px",
+    padding: "4px 8px",
+    borderRadius: "9999px",
+    background: "linear-gradient(90deg,#bae6fd,#d9f99d)",
+    color: "#064e3b",
+    fontWeight: 700,
+    border: "1px solid rgba(255,255,255,0.8)",
+  };
+
   return (
     <div style={bgStyle}>
       {/* カード1：サイト名＋ゲーム2つ */}
@@ -220,7 +274,7 @@ export default function HomeScreen({
         </div>
       </div>
 
-      {/* カード2：音楽プレイヤー（既存のまま） */}
+      {/* カード2：音楽プレイヤー（機能追加） */}
       <div style={cardStyle}>
         <div
           style={{
@@ -232,6 +286,27 @@ export default function HomeScreen({
           }}
         >
           音楽プレイヤー
+        </div>
+
+        {/* ★ 再生モード切替（連続再生 / 1曲リピート） */}
+        <div style={toggleRowStyle}>
+          <label style={toggleLabelStyle}>
+            <input
+              type="checkbox"
+              checked={continuous}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setContinuous(on);
+                // 連続→ONにしたら現在の曲はそのまま
+                // OFFにしたら1曲リピートになる（audio.loopはuseEffectで反映）
+              }}
+              style={{ marginRight: 8 }}
+            />
+            連続再生をオンにする
+          </label>
+          <span style={modeBadgeStyle}>
+            {continuous ? "モード：リスト連続" : "モード：1曲リピート"}
+          </span>
         </div>
 
         {/* 曲選択 */}
@@ -321,7 +396,7 @@ export default function HomeScreen({
         <audio ref={audioRef} src={currentTrack.src} />
       </div>
 
-      {/* カード3：サイト説明（新規追加／あなたの原稿そのまま） */}
+      {/* カード3：サイト説明（あなたの原稿のまま） */}
       <div style={aboutCardStyle} aria-label="こころびひろばの説明">
         <div style={{ fontSize: "16px", fontWeight: 800, marginBottom: 8 }}>
           🌸 こころびひろば
